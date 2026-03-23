@@ -99,36 +99,31 @@ final status = await blocker.checkPermission();
 await blocker.requestPermission();
 ```
 
-### Get Installed Apps
+### Get Apps & Block
+
+**Android:**
 
 ```dart
-// Android: returns all installed user apps with name & icon
-// iOS: shows FamilyActivityPicker, returns selected apps
+// Get all installed apps (returns list with appName, packageName, icon)
 final apps = await blocker.getApps();
-// Each app has: appName, packageName, icon (Uint8List?, Android only)
+
+// Block using package names
+await blocker.blockApps(apps.map((a) => a.packageName).toList());
 ```
 
-### Block / Unblock Apps
+**iOS:**
 
 ```dart
-// Block specific apps
-await blocker.blockApps(['com.instagram.android', 'com.twitter.android']);
+// Opens FamilyActivityPicker — user selects apps → automatically blocked
+await blocker.getApps();
+```
 
-// Block all apps
+**Common:**
+
+```dart
 await blocker.blockAll();
-
-// Unblock specific apps
-await blocker.unblockApps(['com.instagram.android']);
-
-// Unblock all
 await blocker.unblockAll();
-
-// Get list of currently blocked apps
 final blocked = await blocker.getBlockedApps();
-
-// Check status of a specific app
-final status = await blocker.getAppStatus('com.instagram.android');
-// Returns: BlockStatus.blocked / .unblocked / .scheduled
 ```
 
 ### Overlay Config (Android only)
