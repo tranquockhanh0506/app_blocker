@@ -1,264 +1,121 @@
 # app_blocker
 
 [![pub package](https://img.shields.io/pub/v/app_blocker.svg)](https://pub.dev/packages/app_blocker)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/khanhtq/app_blocker/blob/main/LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/tranquockhanh0506/app_blocker/blob/main/LICENSE)
 
-Cross-platform Flutter plugin for blocking apps with overlay (Android) and Screen Time Shield (iOS).
+A Flutter plugin to block apps on Android and iOS.
 
-## Features
-
-- Block specific apps or all apps at once
-- Real-time blocking events via `Stream`
-- Schedule-based blocking with configurable weekdays and time ranges
-- Focus profiles for grouping blocked apps and schedules
-- Customizable overlay UI (Android)
-- System-level Screen Time Shield (iOS)
-- App discovery (installed apps list on Android, FamilyActivityPicker on iOS)
-- Permission management with status checking
-- Boot persistence (Android)
+- **Android:** Foreground service + overlay window
+- **iOS:** Screen Time API (FamilyControls + ManagedSettings)
 
 ## Platform Support
 
-| Feature                  | Android | iOS   |
-|--------------------------|---------|-------|
-| Block / Unblock apps     | ✅      | ✅    |
-| Overlay UI               | ✅      | -     |
-| Screen Time Shield       | -       | ✅    |
-| Installed apps list      | ✅      | -     |
-| FamilyActivityPicker     | -       | ✅    |
-| Schedules                | ✅      | ✅    |
-| Profiles                 | ✅      | ✅    |
-| Block events stream      | ✅      | ✅    |
-| Boot persistence         | ✅      | -     |
+| Feature              | Android | iOS |
+|----------------------|---------|-----|
+| Block / Unblock apps | ✅      | ✅  |
+| Block all apps       | ✅      | ✅  |
+| Get installed apps   | ✅      | -   |
+| Custom overlay       | ✅      | -   |
+| Screen Time Shield   | -       | ✅  |
+| Schedules            | ✅      | ✅  |
+| Block events stream  | ✅      | ✅  |
+| Boot persistence     | ✅      | -   |
 
-## Getting Started
-
-### Installation
-
-Add `app_blocker` to your `pubspec.yaml`:
+## Installation
 
 ```yaml
 dependencies:
   app_blocker: ^1.0.0
 ```
 
-Then run:
+## Setup
 
-```bash
-flutter pub get
-```
-
-### Android Setup
+### Android
 
 **Minimum SDK:** 24 (Android 7.0)
 
-Add the following permissions to `android/app/src/main/AndroidManifest.xml`:
-
-```xml
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <!-- Required for detecting foreground apps -->
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
-
-    <!-- Required for showing overlay on blocked apps -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-
-    <!-- Required for listing installed apps (API 30+) -->
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
-        tools:ignore="QueryAllPackagesPermission" />
-
-    <!-- Required for foreground service -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-
-    <!-- Required for restoring block state after reboot -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
-    <!-- Required for scheduling -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-
-    <!-- ... -->
-</manifest>
-```
-
-Add the `tools` namespace to the `<manifest>` tag:
+Add to `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+</manifest>
 ```
 
-### iOS Setup
+### iOS
 
-**Minimum iOS:** 15.0 (iOS 16.0+ recommended for full feature support)
+**Minimum iOS:** 16.0
 
-1. Enable the **FamilyControls** capability in your Xcode project:
-   - Open `ios/Runner.xcworkspace` in Xcode
-   - Select the Runner target > Signing & Capabilities
-   - Click **+ Capability** and add **Family Controls**
-
-2. Add the entitlement to your `ios/Runner/Runner.entitlements`:
-
-```xml
-<key>com.apple.developer.family-controls</key>
-<true/>
-```
-
-3. Set the minimum deployment target in `ios/Podfile`:
+1. Open `ios/Runner.xcworkspace` in Xcode
+2. Runner target > **Signing & Capabilities** > add **Family Controls**
+3. Set deployment target in `ios/Podfile`:
 
 ```ruby
-platform :ios, '15.0'
+platform :ios, '16.0'
 ```
 
-> **Note:** Full Screen Time API features (ManagedSettingsStore, DeviceActivityMonitor) require iOS 16.0+. On iOS 15.x, only FamilyControls authorization is available.
-
 ## Usage
-
-### Quick Start
 
 ```dart
 import 'package:app_blocker/app_blocker.dart';
 
 final blocker = AppBlocker.instance;
-
-// 1. Request permissions
-await blocker.requestPermission();
-
-// 2. Get available apps
-final apps = await blocker.getApps();
-
-// 3. Block selected apps
-await blocker.blockApps(['com.instagram.android', 'com.twitter.android']);
-
-// 4. Listen to events
-blocker.onBlockEvent.listen((event) {
-  print('${event.type}: ${event.packageName}');
-});
 ```
 
-### Permission Handling
+### Permission
 
 ```dart
+// Check permission status
 final status = await blocker.checkPermission();
+// Returns: BlockerPermissionStatus.granted / .denied / .restricted
 
-switch (status) {
-  case BlockerPermissionStatus.granted:
-    // Ready to block
-    break;
-  case BlockerPermissionStatus.denied:
-    // Request permission
-    final result = await blocker.requestPermission();
-    break;
-  case BlockerPermissionStatus.restricted:
-    // Cannot request - restricted by system policy
-    break;
-}
+// Request permission (opens system settings on Android, shows dialog on iOS)
+await blocker.requestPermission();
 ```
 
-### Blocking Apps
+### Get Installed Apps
+
+```dart
+// Android: returns all installed user apps with name & icon
+// iOS: shows FamilyActivityPicker, returns selected apps
+final apps = await blocker.getApps();
+// Each app has: appName, packageName, icon (Uint8List?, Android only)
+```
+
+### Block / Unblock Apps
 
 ```dart
 // Block specific apps
-await blocker.blockApps(['com.example.app1', 'com.example.app2']);
+await blocker.blockApps(['com.instagram.android', 'com.twitter.android']);
 
-// Block all user apps
+// Block all apps
 await blocker.blockAll();
 
 // Unblock specific apps
-await blocker.unblockApps(['com.example.app1']);
+await blocker.unblockApps(['com.instagram.android']);
 
-// Unblock everything
+// Unblock all
 await blocker.unblockAll();
 
-// Check what's blocked
-final blockedApps = await blocker.getBlockedApps();
+// Get list of currently blocked apps
+final blocked = await blocker.getBlockedApps();
 
-// Check a specific app
-final status = await blocker.getAppStatus('com.example.app1');
-// Returns: BlockStatus.blocked, BlockStatus.unblocked, or BlockStatus.scheduled
+// Check status of a specific app
+final status = await blocker.getAppStatus('com.instagram.android');
+// Returns: BlockStatus.blocked / .unblocked / .scheduled
 ```
 
-### Listening to Events
-
-```dart
-blocker.onBlockEvent.listen((event) {
-  switch (event.type) {
-    case BlockEventType.blocked:
-      print('Blocked: ${event.packageName}');
-      break;
-    case BlockEventType.unblocked:
-      print('Unblocked: ${event.packageName}');
-      break;
-    case BlockEventType.attemptedAccess:
-      print('Attempted access: ${event.packageName}');
-      break;
-    case BlockEventType.scheduleActivated:
-      print('Schedule activated: ${event.scheduleId}');
-      break;
-    case BlockEventType.scheduleDeactivated:
-      print('Schedule deactivated: ${event.scheduleId}');
-      break;
-  }
-});
-```
-
-### Scheduling
-
-```dart
-// Create a schedule to block apps on weekdays from 9 AM to 5 PM
-final schedule = BlockSchedule(
-  id: 'work-hours',
-  name: 'Work Hours',
-  appIdentifiers: ['com.instagram.android', 'com.twitter.android'],
-  weekdays: [1, 2, 3, 4, 5], // Monday to Friday (ISO 8601)
-  startTime: const TimeOfDay(hour: 9, minute: 0),
-  endTime: const TimeOfDay(hour: 17, minute: 0),
-);
-
-await blocker.addSchedule(schedule);
-
-// Get all schedules
-final schedules = await blocker.getSchedules();
-
-// Enable / disable
-await blocker.disableSchedule('work-hours');
-await blocker.enableSchedule('work-hours');
-
-// Remove
-await blocker.removeSchedule('work-hours');
-```
-
-### Profiles
-
-```dart
-// Create a profile
-final profile = BlockProfile(
-  id: 'work-mode',
-  name: 'Work Mode',
-  appIdentifiers: ['com.instagram.android', 'com.twitter.android'],
-  schedules: [schedule],
-);
-
-await blocker.createProfile(profile);
-
-// Activate (only one profile can be active at a time)
-await blocker.activateProfile('work-mode');
-
-// Get active profile
-final active = await blocker.getActiveProfile();
-
-// Deactivate
-await blocker.deactivateProfile('work-mode');
-
-// List all profiles
-final profiles = await blocker.getProfiles();
-
-// Delete
-await blocker.deleteProfile('work-mode');
-```
-
-### Overlay Configuration (Android Only)
+### Overlay Config (Android only)
 
 ```dart
 await blocker.setOverlayConfig(
@@ -267,35 +124,51 @@ await blocker.setOverlayConfig(
     subtitle: 'This app is blocked',
     message: 'Get back to work.',
     backgroundColor: Color(0xDD000000),
-    iconAssetPath: 'assets/icons/lock.png',
   ),
 );
+// iOS uses system Screen Time Shield automatically
 ```
 
-> On iOS, the system Screen Time Shield is used instead and cannot be customized.
+### Schedules
 
-## API Reference
+```dart
+// Add a schedule
+await blocker.addSchedule(BlockSchedule(
+  id: 'work-hours',
+  name: 'Work Hours',
+  appIdentifiers: ['com.instagram.android'],
+  weekdays: [1, 2, 3, 4, 5], // Mon-Fri (ISO 8601)
+  startTime: const TimeOfDay(hour: 9, minute: 0),
+  endTime: const TimeOfDay(hour: 17, minute: 0),
+));
 
-See the full [API documentation on pub.dev](https://pub.dev/documentation/app_blocker/latest/).
+await blocker.enableSchedule('work-hours');
+await blocker.disableSchedule('work-hours');
+await blocker.removeSchedule('work-hours');
+final schedules = await blocker.getSchedules();
+```
 
-## Platform-Specific Notes
+### Block Events
 
-### Android
+```dart
+blocker.onBlockEvent.listen((event) {
+  print('${event.type}: ${event.packageName}');
+});
+// Event types: blocked, unblocked, attemptedAccess,
+//              scheduleActivated, scheduleDeactivated
+```
 
-- Uses a foreground service with `UsageStatsManager` to detect foreground apps.
-- Shows a `TYPE_APPLICATION_OVERLAY` window over blocked apps.
-- Schedules are implemented with `AlarmManager` for precise timing.
-- Block state persists across reboots via `RECEIVE_BOOT_COMPLETED`.
-- Requires `minSdkVersion 24` (Android 7.0 Nougat).
+### Capabilities
 
-### iOS
+```dart
+// Check what features are available on current platform
+final caps = await blocker.getCapabilities();
+```
 
-- Uses the Screen Time API (`FamilyControls`, `ManagedSettings`, `DeviceActivityMonitor`).
-- App selection is done via the native `FamilyActivityPicker` — apps are represented by opaque tokens, not bundle identifiers.
-- Shields are managed by `ManagedSettingsStore` and survive app termination.
-- Schedules use `DeviceActivitySchedule` (iOS 16+) or `UserDefaults` persistence with background refresh (iOS 15).
-- Requires the **Family Controls** entitlement and user authorization.
+## Example
+
+See the [example app](https://github.com/tranquockhanh0506/app_blocker/tree/master/example) for a complete working demo.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
