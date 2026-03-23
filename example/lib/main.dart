@@ -332,7 +332,7 @@ class _AppPickerBottomSheetState extends State<_AppPickerBottomSheet> {
             height: 6,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
-              color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
             ),
           ),
           const SizedBox(height: 20),
@@ -425,7 +425,7 @@ class _AppTile extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: colorScheme.outlineVariant.withOpacity(0.3),
+              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
             ),
           ),
         ),

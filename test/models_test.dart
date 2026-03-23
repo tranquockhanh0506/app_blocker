@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -266,13 +265,13 @@ void main() {
     });
 
     test('toMap produces correct keys', () {
-      final schedule = BlockSchedule(
+      const schedule = BlockSchedule(
         id: 's1',
         name: 'Test',
         appIdentifiers: ['com.a'],
         weekdays: [6, 7],
-        startTime: const TimeOfDay(hour: 22, minute: 15),
-        endTime: const TimeOfDay(hour: 6, minute: 45),
+        startTime: TimeOfDay(hour: 22, minute: 15),
+        endTime: TimeOfDay(hour: 6, minute: 45),
         enabled: false,
       );
 
@@ -316,29 +315,29 @@ void main() {
     });
 
     test('equality is based on id', () {
-      final a = BlockSchedule(
+      const a = BlockSchedule(
         id: 's1',
         name: 'A',
         appIdentifiers: [],
         weekdays: [],
-        startTime: const TimeOfDay(hour: 0, minute: 0),
-        endTime: const TimeOfDay(hour: 0, minute: 0),
+        startTime: TimeOfDay(hour: 0, minute: 0),
+        endTime: TimeOfDay(hour: 0, minute: 0),
       );
-      final b = BlockSchedule(
+      const b = BlockSchedule(
         id: 's1',
         name: 'B',
         appIdentifiers: ['com.x'],
         weekdays: [1],
-        startTime: const TimeOfDay(hour: 1, minute: 0),
-        endTime: const TimeOfDay(hour: 2, minute: 0),
+        startTime: TimeOfDay(hour: 1, minute: 0),
+        endTime: TimeOfDay(hour: 2, minute: 0),
       );
-      final c = BlockSchedule(
+      const c = BlockSchedule(
         id: 's2',
         name: 'A',
         appIdentifiers: [],
         weekdays: [],
-        startTime: const TimeOfDay(hour: 0, minute: 0),
-        endTime: const TimeOfDay(hour: 0, minute: 0),
+        startTime: TimeOfDay(hour: 0, minute: 0),
+        endTime: TimeOfDay(hour: 0, minute: 0),
       );
 
       expect(a, equals(b));
@@ -346,34 +345,34 @@ void main() {
     });
 
     test('hashCode is based on id', () {
-      final a = BlockSchedule(
+      const a = BlockSchedule(
         id: 's1',
         name: 'A',
         appIdentifiers: [],
         weekdays: [],
-        startTime: const TimeOfDay(hour: 0, minute: 0),
-        endTime: const TimeOfDay(hour: 0, minute: 0),
+        startTime: TimeOfDay(hour: 0, minute: 0),
+        endTime: TimeOfDay(hour: 0, minute: 0),
       );
-      final b = BlockSchedule(
+      const b = BlockSchedule(
         id: 's1',
         name: 'B',
         appIdentifiers: [],
         weekdays: [],
-        startTime: const TimeOfDay(hour: 0, minute: 0),
-        endTime: const TimeOfDay(hour: 0, minute: 0),
+        startTime: TimeOfDay(hour: 0, minute: 0),
+        endTime: TimeOfDay(hour: 0, minute: 0),
       );
 
       expect(a.hashCode, equals(b.hashCode));
     });
 
     test('copyWith replaces fields correctly', () {
-      final original = BlockSchedule(
+      const original = BlockSchedule(
         id: 's1',
         name: 'Original',
         appIdentifiers: ['com.a'],
         weekdays: [1],
-        startTime: const TimeOfDay(hour: 8, minute: 0),
-        endTime: const TimeOfDay(hour: 17, minute: 0),
+        startTime: TimeOfDay(hour: 8, minute: 0),
+        endTime: TimeOfDay(hour: 17, minute: 0),
         enabled: true,
       );
 
@@ -386,13 +385,13 @@ void main() {
     });
 
     test('toString contains id and name', () {
-      final schedule = BlockSchedule(
+      const schedule = BlockSchedule(
         id: 's1',
         name: 'Work',
         appIdentifiers: [],
         weekdays: [],
-        startTime: const TimeOfDay(hour: 0, minute: 0),
-        endTime: const TimeOfDay(hour: 0, minute: 0),
+        startTime: TimeOfDay(hour: 0, minute: 0),
+        endTime: TimeOfDay(hour: 0, minute: 0),
       );
       final str = schedule.toString();
       expect(str, contains('s1'));
@@ -462,7 +461,7 @@ void main() {
     });
 
     test('toMap produces correct structure', () {
-      final profile = BlockProfile(
+      const profile = BlockProfile(
         id: 'p1',
         name: 'Test',
         appIdentifiers: ['com.a'],
@@ -472,8 +471,8 @@ void main() {
             name: 'Inner',
             appIdentifiers: ['com.a'],
             weekdays: [1],
-            startTime: const TimeOfDay(hour: 9, minute: 0),
-            endTime: const TimeOfDay(hour: 17, minute: 0),
+            startTime: TimeOfDay(hour: 9, minute: 0),
+            endTime: TimeOfDay(hour: 17, minute: 0),
           ),
         ],
         isActive: true,
@@ -569,7 +568,7 @@ void main() {
       expect(map['title'], 'Blocked');
       expect(map['subtitle'], 'Focus Time');
       expect(map['message'], 'Stay focused!');
-      expect(map['backgroundColor'], const Color(0xFF112233).value);
+      expect(map['backgroundColor'], const Color(0xFF112233).toARGB32());
       expect(map['iconAssetPath'], 'assets/lock.png');
     });
 

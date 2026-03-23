@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app_blocker/app_blocker.dart';
-import 'package:app_blocker/src/app_blocker_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 // ---------------------------------------------------------------------------
@@ -409,13 +408,13 @@ void main() {
   // == Scheduling ==
 
   group('schedule CRUD', () {
-    final schedule = BlockSchedule(
+    const schedule = BlockSchedule(
       id: 'sched-1',
       name: 'Work Hours',
       appIdentifiers: ['com.example.app1'],
       weekdays: [1, 2, 3, 4, 5],
-      startTime: const TimeOfDay(hour: 9, minute: 0),
-      endTime: const TimeOfDay(hour: 17, minute: 0),
+      startTime: TimeOfDay(hour: 9, minute: 0),
+      endTime: TimeOfDay(hour: 17, minute: 0),
     );
 
     test('addSchedule completes', () async {

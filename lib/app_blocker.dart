@@ -2,7 +2,7 @@
 ///
 /// Block applications on Android (overlay) and iOS (Screen Time Shield).
 /// Supports scheduling, focus profiles, and real-time blocking events.
-library app_blocker;
+library;
 
 export 'src/app_blocker.dart';
 export 'src/app_blocker_platform_interface.dart';
