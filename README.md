@@ -8,6 +8,22 @@ A Flutter plugin to block apps on Android and iOS.
 - **Android:** Foreground service + overlay window
 - **iOS:** Screen Time API (FamilyControls + ManagedSettings)
 
+## Supported Functions
+
+- `checkPermission()` — Check if required permissions are granted
+- `requestPermission()` — Request permissions from user
+- `getApps()` — Get list of installed apps (Android) or show app picker (iOS)
+- `blockApps(List<String>)` — Block specific apps
+- `blockAll()` — Block all apps
+- `unblockApps(List<String>)` — Unblock specific apps
+- `unblockAll()` — Unblock all apps
+- `getBlockedApps()` — Get list of currently blocked apps
+- `getAppStatus(String)` — Check block status of a specific app
+- `setOverlayConfig(OverlayConfig)` — Customize block overlay (Android only)
+- `addSchedule(BlockSchedule)` — Add a blocking schedule
+- `onBlockEvent` — Stream of block/unblock events
+- `getCapabilities()` — Check available features on current platform
+
 ## Platform Support
 
 | Feature              | Android | iOS |
