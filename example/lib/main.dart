@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -68,6 +69,25 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _selectApps() async {
+    if (Platform.isIOS) {
+      // iOS: FamilyActivityPicker handles selection & blocking in one step
+      setState(() => _loadingApps = true);
+      try {
+        await _blocker.getApps();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Apps blocked via Screen Time')),
+          );
+        }
+      } catch (e) {
+        _showError('Failed to select apps: $e');
+      } finally {
+        setState(() => _loadingApps = false);
+      }
+      return;
+    }
+
+    // Android: get apps list, then show bottom sheet to pick
     if (_apps.isEmpty) {
       setState(() => _loadingApps = true);
       try {

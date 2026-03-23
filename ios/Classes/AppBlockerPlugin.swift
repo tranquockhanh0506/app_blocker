@@ -44,6 +44,18 @@ public class AppBlockerPlugin: NSObject, FlutterPlugin {
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
 
+    private static func findRootViewController() -> UIViewController? {
+        if #available(iOS 13.0, *) {
+            return UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first { $0.isKeyWindow }?
+                .rootViewController
+        } else {
+            return UIApplication.shared.delegate?.window??.rootViewController
+        }
+    }
+
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "getCapabilities":
@@ -176,7 +188,7 @@ public class AppBlockerPlugin: NSObject, FlutterPlugin {
                 ))
                 return
             }
-            guard let rootViewController = UIApplication.shared.delegate?.window??.rootViewController else {
+            guard let rootViewController = Self.findRootViewController() else {
                 result(FlutterError(
                     code: "SERVICE_UNAVAILABLE",
                     message: "Unable to find root view controller.",
