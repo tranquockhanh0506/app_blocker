@@ -5,8 +5,10 @@
 
 A Flutter plugin to block apps on Android and iOS.
 
-- **Android:** Foreground service + overlay window
-- **iOS:** Screen Time API (FamilyControls + ManagedSettings)
+- **Android:** Foreground service + overlay window to detect and block apps
+- **iOS:** Screen Time API
+  - **FamilyControls** — request user authorization to manage Screen Time
+  - **ManagedSettings** — apply shield restrictions on selected apps (required for blocking specific apps, not needed for `blockAll()`)
 
 ## Supported Functions
 
