@@ -43,7 +43,7 @@ A Flutter plugin to block apps on Android and iOS.
 
 ```yaml
 dependencies:
-  app_blocker: ^1.0.0
+  app_blocker: ^1.0.5
 ```
 
 ## Setup
