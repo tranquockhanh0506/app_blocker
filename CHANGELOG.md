@@ -1,3 +1,7 @@
+## 1.0.6
+
+- Fix installation version in README
+
 ## 1.0.0
 
 - Initial release
