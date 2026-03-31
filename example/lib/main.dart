@@ -74,7 +74,8 @@ class _BlockingTab extends StatefulWidget {
   State<_BlockingTab> createState() => _BlockingTabState();
 }
 
-class _BlockingTabState extends State<_BlockingTab> {
+class _BlockingTabState extends State<_BlockingTab>
+    with WidgetsBindingObserver {
   final _blocker = AppBlocker.instance;
 
   BlockerPermissionStatus? _permission;
@@ -88,10 +89,25 @@ class _BlockingTabState extends State<_BlockingTab> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkPermission();
     _loadCaps();
     _refreshBlocked();
     _loadOverlayConfig();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Re-check permissions automatically when the user returns from Settings.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermission();
+    }
   }
 
   Future<void> _checkPermission() async {
@@ -289,7 +305,7 @@ class _BlockingTabState extends State<_BlockingTab> {
         children: [
           // Permissions & capabilities
           _Section(
-            title: 'Permissions & Capabilities',
+            title: 'Permissions',
             children: [
               Row(
                 children: [
@@ -301,19 +317,16 @@ class _BlockingTabState extends State<_BlockingTab> {
                   Text('Status: ${_permission?.name ?? '…'}'),
                 ],
               ),
-              if (_caps != null) ...[
+              if (!granted && Platform.isAndroid) ...[
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    _CapChip('Block apps', _caps!.canBlockApps),
-                    _CapChip('Overlay', _caps!.canShowOverlay),
-                    _CapChip('Shield', _caps!.canUseSystemShield),
-                    _CapChip('Schedule', _caps!.canSchedule),
-                    _CapChip('App list', _caps!.canGetInstalledApps),
-                    _CapChip('Picker', _caps!.canShowActivityPicker),
-                  ],
+                Text(
+                  'Android requires 3 permissions: Accessibility service, '
+                  'Display over other apps, and Alarms & reminders (exact alarm). '
+                  'Tap "Grant next" to open the relevant Settings screen. '
+                  'Return here and tap again until all are granted.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
               const SizedBox(height: 8),
@@ -326,14 +339,43 @@ class _BlockingTabState extends State<_BlockingTab> {
                     child: const Text('Check'),
                   ),
                   FilledButton(
-                    onPressed: _requestPermission,
-                    child: const Text('Request'),
-                  ),
-                  FilledButton.tonal(
-                    onPressed: _loadCaps,
-                    child: const Text('Caps'),
+                    onPressed: granted ? null : _requestPermission,
+                    child: const Text('Grant next'),
                   ),
                 ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Capabilities
+          _Section(
+            title: 'Capabilities',
+            children: [
+              if (_caps == null)
+                Text(
+                  'Not loaded',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    _CapChip('Block apps', _caps!.canBlockApps),
+                    _CapChip('Overlay', _caps!.canShowOverlay),
+                    _CapChip('Shield', _caps!.canUseSystemShield),
+                    _CapChip('Schedule', _caps!.canSchedule),
+                    _CapChip('App list', _caps!.canGetInstalledApps),
+                    _CapChip('Picker', _caps!.canShowActivityPicker),
+                  ],
+                ),
+              const SizedBox(height: 8),
+              FilledButton.tonal(
+                onPressed: _loadCaps,
+                child: const Text('Refresh capabilities'),
               ),
             ],
           ),
@@ -708,8 +750,9 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
       context: context,
       initialTime: isStart ? _start : _end,
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() => isStart ? _start = picked : _end = picked);
+    }
   }
 
   String _fmtTime(TimeOfDay t) =>
@@ -790,8 +833,9 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
                 .toList();
             if (_name.text.trim().isEmpty ||
                 _weekdays.isEmpty ||
-                appIds.isEmpty)
+                appIds.isEmpty) {
               return;
+            }
             Navigator.pop(
               context,
               BlockSchedule(
