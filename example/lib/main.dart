@@ -33,22 +33,26 @@ class _Shell extends StatefulWidget {
 
 class _ShellState extends State<_Shell> {
   int _tab = 0;
+  final _blockingTabKey = GlobalKey<_BlockingTabState>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _tab,
-        children: const [
-          _BlockingTab(),
-          _SchedulesTab(),
-          _ProfilesTab(),
-          _EventsTab(),
+        children: [
+          _BlockingTab(key: _blockingTabKey),
+          const _SchedulesTab(),
+          const _ProfilesTab(),
+          const _EventsTab(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
+        onDestinationSelected: (i) {
+          setState(() => _tab = i);
+          if (i == 0) _blockingTabKey.currentState?._refreshBlocked();
+        },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.block), label: 'Blocking'),
           NavigationDestination(icon: Icon(Icons.schedule), label: 'Schedules'),
@@ -68,7 +72,7 @@ class _ShellState extends State<_Shell> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BlockingTab extends StatefulWidget {
-  const _BlockingTab();
+  const _BlockingTab({super.key});
 
   @override
   State<_BlockingTab> createState() => _BlockingTabState();
@@ -388,62 +392,97 @@ class _BlockingTabState extends State<_BlockingTab>
               icon: const Icon(Icons.refresh),
               onPressed: _refreshBlocked,
             ),
-            children: _blockedApps.isEmpty
-                ? [
-                    Text(
-                      'None',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ]
-                : _blockedApps
-                      .map((p) => Text(p, style: theme.textTheme.bodySmall))
-                      .toList(),
+            children: [
+              Text(
+                'Apps currently blocked — includes explicit blocks, active schedules, and active profiles.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (_blockedApps.isEmpty)
+                Text(
+                  'None',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                ..._blockedApps.map(
+                  (p) => Text(p, style: theme.textTheme.bodySmall),
+                ),
+            ],
           ),
           const SizedBox(height: 12),
 
-          // Block / unblock
+          // Block / unblock selected apps
           _Section(
             title: 'Block / Unblock Apps',
             children: [
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.tonal(
-                  onPressed: _loadingApps ? null : _selectApps,
-                  child: _loadingApps
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(
-                          _selectedApps.isEmpty
-                              ? 'Select Apps'
-                              : '${_selectedApps.length} selected — tap to change',
-                        ),
-                ),
-              ),
-              if (_selectedApps.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: _blockSelected,
-                        child: Text('Block ${_selectedApps.length}'),
-                      ),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.tonal(
+                      onPressed: _loadingApps ? null : _selectApps,
+                      child: _loadingApps
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(
+                              _selectedApps.isEmpty
+                                  ? 'Select Apps…'
+                                  : '${_selectedApps.length} app(s) selected',
+                            ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.tonal(
-                        onPressed: _unblockSelected,
-                        child: Text('Unblock ${_selectedApps.length}'),
-                      ),
+                  ),
+                  if (_selectedApps.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Clear selection',
+                      onPressed: () => setState(() => _selectedApps = {}),
                     ),
                   ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _selectedApps.isNotEmpty
+                          ? _blockSelected
+                          : null,
+                      child: const Text('Block'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _selectedApps.isNotEmpty
+                          ? _unblockSelected
+                          : null,
+                      child: const Text('Unblock'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Block All mode
+          _Section(
+            title: 'Block All Mode',
+            children: [
+              Text(
+                'Blocks every app on the device, independently of the selection above.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-              ],
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -453,19 +492,26 @@ class _BlockingTabState extends State<_BlockingTab>
                       style: FilledButton.styleFrom(
                         backgroundColor: theme.colorScheme.error,
                       ),
-                      child: const Text('Block All'),
+                      child: const Text('Enable'),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: FilledButton.tonal(
+                    child: OutlinedButton(
                       onPressed: _unblockAll,
-                      child: const Text('Unblock All'),
+                      child: const Text('Disable'),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Check app status
+          _Section(
+            title: 'App Status',
+            children: [
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(

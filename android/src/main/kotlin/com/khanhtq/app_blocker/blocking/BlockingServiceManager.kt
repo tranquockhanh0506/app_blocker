@@ -85,8 +85,10 @@ class BlockingServiceManager(private val context: Context) {
     // Queries
     // ------------------------------------------------------------------
 
-    /** Returns the current set of explicitly blocked package names. */
-    fun getBlockedApps(): Set<String> = preferences.getBlockedApps()
+    /** Returns the actively blocked package names, or empty if blocking is inactive. */
+    fun getBlockedApps(): Set<String> =
+        if (!preferences.isBlocking() || preferences.isBlockAll()) emptySet()
+        else preferences.getBlockedApps()
 
     /** Returns `true` if the blocking gate is active. */
     fun isBlocking(): Boolean = preferences.isBlocking()
