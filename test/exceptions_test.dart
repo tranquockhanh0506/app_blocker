@@ -104,10 +104,7 @@ void main() {
 
     test('toString matches expected format', () {
       const ex = PlatformUnsupportedException();
-      expect(
-        ex.toString(),
-        contains('PlatformUnsupportedException'),
-      );
+      expect(ex.toString(), contains('PlatformUnsupportedException'));
       expect(ex.toString(), contains('PLATFORM_UNSUPPORTED'));
     });
   });

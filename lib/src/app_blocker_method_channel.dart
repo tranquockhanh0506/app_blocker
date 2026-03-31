@@ -67,10 +67,9 @@ class MethodChannelAppBlocker extends AppBlockerPlatform {
 
   @override
   Future<void> blockApps(List<String> appIdentifiers) async {
-    await _invokeMethod<void>(
-      AppBlockerConstants.blockApps,
-      {'identifiers': appIdentifiers},
-    );
+    await _invokeMethod<void>(AppBlockerConstants.blockApps, {
+      'identifiers': appIdentifiers,
+    });
   }
 
   @override
@@ -80,10 +79,9 @@ class MethodChannelAppBlocker extends AppBlockerPlatform {
 
   @override
   Future<void> unblockApps(List<String> appIdentifiers) async {
-    await _invokeMethod<void>(
-      AppBlockerConstants.unblockApps,
-      {'identifiers': appIdentifiers},
-    );
+    await _invokeMethod<void>(AppBlockerConstants.unblockApps, {
+      'identifiers': appIdentifiers,
+    });
   }
 
   @override
@@ -149,39 +147,32 @@ class MethodChannelAppBlocker extends AppBlockerPlatform {
 
   @override
   Future<void> removeSchedule(String scheduleId) async {
-    await _invokeMethod<void>(
-      AppBlockerConstants.removeSchedule,
-      {'id': scheduleId},
-    );
+    await _invokeMethod<void>(AppBlockerConstants.removeSchedule, {
+      'id': scheduleId,
+    });
   }
 
   @override
   Future<List<BlockSchedule>> getSchedules() async {
-    final result = await _invokeMethod<List>(
-      AppBlockerConstants.getSchedules,
-    );
+    final result = await _invokeMethod<List>(AppBlockerConstants.getSchedules);
     if (result == null) return [];
     return result
-        .map(
-          (e) => BlockSchedule.fromMap(Map<String, dynamic>.from(e as Map)),
-        )
+        .map((e) => BlockSchedule.fromMap(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
 
   @override
   Future<void> enableSchedule(String scheduleId) async {
-    await _invokeMethod<void>(
-      AppBlockerConstants.enableSchedule,
-      {'id': scheduleId},
-    );
+    await _invokeMethod<void>(AppBlockerConstants.enableSchedule, {
+      'id': scheduleId,
+    });
   }
 
   @override
   Future<void> disableSchedule(String scheduleId) async {
-    await _invokeMethod<void>(
-      AppBlockerConstants.disableSchedule,
-      {'id': scheduleId},
-    );
+    await _invokeMethod<void>(AppBlockerConstants.disableSchedule, {
+      'id': scheduleId,
+    });
   }
 
   // -- Profiles --
@@ -204,39 +195,32 @@ class MethodChannelAppBlocker extends AppBlockerPlatform {
 
   @override
   Future<void> deleteProfile(String profileId) async {
-    await _invokeMethod<void>(
-      AppBlockerConstants.deleteProfile,
-      {'id': profileId},
-    );
+    await _invokeMethod<void>(AppBlockerConstants.deleteProfile, {
+      'id': profileId,
+    });
   }
 
   @override
   Future<List<BlockProfile>> getProfiles() async {
-    final result = await _invokeMethod<List>(
-      AppBlockerConstants.getProfiles,
-    );
+    final result = await _invokeMethod<List>(AppBlockerConstants.getProfiles);
     if (result == null) return [];
     return result
-        .map(
-          (e) => BlockProfile.fromMap(Map<String, dynamic>.from(e as Map)),
-        )
+        .map((e) => BlockProfile.fromMap(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
 
   @override
   Future<void> activateProfile(String profileId) async {
-    await _invokeMethod<void>(
-      AppBlockerConstants.activateProfile,
-      {'id': profileId},
-    );
+    await _invokeMethod<void>(AppBlockerConstants.activateProfile, {
+      'id': profileId,
+    });
   }
 
   @override
   Future<void> deactivateProfile(String profileId) async {
-    await _invokeMethod<void>(
-      AppBlockerConstants.deactivateProfile,
-      {'id': profileId},
-    );
+    await _invokeMethod<void>(AppBlockerConstants.deactivateProfile, {
+      'id': profileId,
+    });
   }
 
   @override

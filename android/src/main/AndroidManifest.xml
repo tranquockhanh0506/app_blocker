@@ -2,23 +2,55 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.khanhtq.app_blocker">
 
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
+    <!--
+      SYSTEM_ALERT_WINDOW — draw the block overlay over other apps.
+      Still required even with the accessibility-service approach.
+    -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+
+    <!--
+      PACKAGE_USAGE_STATS — query per-app foreground time for usage-based blocking.
+      Protected permission; user must grant it in Settings → Usage access.
+    -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Enumerate installed apps to populate the app list. -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
+
+    <!-- Reschedule alarms after device reboot. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Schedule exact alarms for time-based blocking. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application>
-        <service
-            android:name=".blocking.BlockingService"
-            android:foregroundServiceType="dataSync|systemExempted"
-            android:exported="false" />
 
+        <!--
+          Accessibility service — the core blocking mechanism.
+
+          The user enables this once in Settings → Accessibility → App Blocker.
+          After that, the system wakes us exactly when the foreground window
+          changes (TYPE_WINDOW_STATE_CHANGED). No polling, no persistent
+          notification, no battery drain.
+        -->
+        <service
+            android:name=".blocking.AppBlockerAccessibilityService"
+            android:exported="true"
+            android:label="App Blocker"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/app_blocker_service_config" />
+        </service>
+
+        <!-- Restores schedule alarms after a device reboot. -->
         <receiver
             android:name=".receiver.BootReceiver"
             android:exported="true">
@@ -28,6 +60,7 @@
             </intent-filter>
         </receiver>
 
+        <!-- Receives AlarmManager broadcasts to start/end scheduled blocks. -->
         <receiver
             android:name=".scheduling.ScheduleAlarmReceiver"
             android:exported="false">
@@ -36,6 +69,7 @@
                 <action android:name="com.khanhtq.app_blocker.SCHEDULE_END" />
             </intent-filter>
         </receiver>
+
     </application>
 
 </manifest>

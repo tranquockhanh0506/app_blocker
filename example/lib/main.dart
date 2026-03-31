@@ -15,10 +15,7 @@ class AppBlockerExampleApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'App Blocker Demo',
-      theme: ThemeData(
-        colorSchemeSeed: Colors.deepPurple,
-        useMaterial3: true,
-      ),
+      theme: ThemeData(colorSchemeSeed: Colors.deepPurple, useMaterial3: true),
       home: const HomePage(),
     );
   }
@@ -127,8 +124,7 @@ class _HomePageState extends State<HomePage> {
       await _blocker.blockApps(_selectedApps.toList());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('${_selectedApps.length} app(s) blocked')),
+          SnackBar(content: Text('${_selectedApps.length} app(s) blocked')),
         );
         setState(() => _selectedApps.clear());
       }
@@ -141,9 +137,9 @@ class _HomePageState extends State<HomePage> {
     try {
       await _blocker.blockAll();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All apps blocked')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('All apps blocked')));
       }
     } catch (e) {
       _showError('Failed to block all: $e');
@@ -154,9 +150,9 @@ class _HomePageState extends State<HomePage> {
     try {
       await _blocker.unblockAll();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All apps unblocked')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('All apps unblocked')));
       }
     } catch (e) {
       _showError('Failed to unblock all: $e');
@@ -197,15 +193,13 @@ class _HomePageState extends State<HomePage> {
                         _permissionStatus == BlockerPermissionStatus.granted
                             ? Icons.check_circle
                             : Icons.warning,
-                        color: _permissionStatus ==
-                                BlockerPermissionStatus.granted
+                        color:
+                            _permissionStatus == BlockerPermissionStatus.granted
                             ? Colors.green
                             : Colors.orange,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Status: ${_permissionStatus?.name ?? 'unknown'}',
-                      ),
+                      Text('Status: ${_permissionStatus?.name ?? 'unknown'}'),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -245,8 +239,7 @@ class _HomePageState extends State<HomePage> {
                           ? const SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Text(
                               _selectedApps.isEmpty
@@ -261,8 +254,7 @@ class _HomePageState extends State<HomePage> {
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: _blockSelectedApps,
-                        child: Text(
-                            'Block ${_selectedApps.length} App(s)'),
+                        child: Text('Block ${_selectedApps.length} App(s)'),
                       ),
                     ),
                   ],
@@ -364,8 +356,7 @@ class _AppPickerBottomSheetState extends State<_AppPickerBottomSheet> {
                     itemCount: widget.apps.length,
                     itemBuilder: (context, index) {
                       final app = widget.apps[index];
-                      final isSelected =
-                          _selected.contains(app.packageName);
+                      final isSelected = _selected.contains(app.packageName);
                       return _AppTile(
                         app: app,
                         isSelected: isSelected,
@@ -449,14 +440,12 @@ class _AppTile extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: isSelected ? colorScheme.primary : Colors.transparent,
                 border: Border.all(
-                  color:
-                      isSelected ? colorScheme.primary : colorScheme.outline,
+                  color: isSelected ? colorScheme.primary : colorScheme.outline,
                   width: 2,
                 ),
               ),
               child: isSelected
-                  ? Icon(Icons.check,
-                      size: 14, color: colorScheme.onPrimary)
+                  ? Icon(Icons.check, size: 14, color: colorScheme.onPrimary)
                   : null,
             ),
           ],

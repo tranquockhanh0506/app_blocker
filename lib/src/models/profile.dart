@@ -49,9 +49,12 @@ class BlockProfile {
       id: map['id'] as String,
       name: map['name'] as String,
       appIdentifiers: List<String>.from(map['appIdentifiers'] as List),
-      schedules: (map['schedules'] as List?)
-              ?.map((e) =>
-                  BlockSchedule.fromMap(Map<String, dynamic>.from(e as Map)))
+      schedules:
+          (map['schedules'] as List?)
+              ?.map(
+                (e) =>
+                    BlockSchedule.fromMap(Map<String, dynamic>.from(e as Map)),
+              )
               .toList() ??
           const [],
       isActive: map['isActive'] as bool? ?? false,

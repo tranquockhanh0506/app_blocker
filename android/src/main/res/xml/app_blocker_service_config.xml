@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Accessibility service configuration for AppBlockerAccessibilityService.
+
+  We listen only to TYPE_WINDOW_STATE_CHANGED and TYPE_WINDOW_CONTENT_CHANGED —
+  the minimal set needed to detect foreground app switches. This is far more
+  battery-efficient than a polling loop because the system calls us only when
+  something actually changes.
+
+  canRetrieveWindowContent is false because we only need the package name from
+  the event, not the full window hierarchy.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault"
+    android:canRetrieveWindowContent="false" />

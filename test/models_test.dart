@@ -265,13 +265,13 @@ void main() {
     });
 
     test('toMap produces correct keys', () {
-      const schedule = BlockSchedule(
+      final schedule = BlockSchedule(
         id: 's1',
         name: 'Test',
         appIdentifiers: ['com.a'],
         weekdays: [6, 7],
-        startTime: TimeOfDay(hour: 22, minute: 15),
-        endTime: TimeOfDay(hour: 6, minute: 45),
+        startTime: const TimeOfDay(hour: 22, minute: 15),
+        endTime: const TimeOfDay(hour: 6, minute: 45),
         enabled: false,
       );
 
@@ -315,29 +315,29 @@ void main() {
     });
 
     test('equality is based on id', () {
-      const a = BlockSchedule(
+      final a = BlockSchedule(
         id: 's1',
         name: 'A',
         appIdentifiers: [],
         weekdays: [],
-        startTime: TimeOfDay(hour: 0, minute: 0),
-        endTime: TimeOfDay(hour: 0, minute: 0),
+        startTime: const TimeOfDay(hour: 0, minute: 0),
+        endTime: const TimeOfDay(hour: 0, minute: 0),
       );
-      const b = BlockSchedule(
+      final b = BlockSchedule(
         id: 's1',
         name: 'B',
         appIdentifiers: ['com.x'],
         weekdays: [1],
-        startTime: TimeOfDay(hour: 1, minute: 0),
-        endTime: TimeOfDay(hour: 2, minute: 0),
+        startTime: const TimeOfDay(hour: 1, minute: 0),
+        endTime: const TimeOfDay(hour: 2, minute: 0),
       );
-      const c = BlockSchedule(
+      final c = BlockSchedule(
         id: 's2',
         name: 'A',
         appIdentifiers: [],
         weekdays: [],
-        startTime: TimeOfDay(hour: 0, minute: 0),
-        endTime: TimeOfDay(hour: 0, minute: 0),
+        startTime: const TimeOfDay(hour: 0, minute: 0),
+        endTime: const TimeOfDay(hour: 0, minute: 0),
       );
 
       expect(a, equals(b));
@@ -345,34 +345,34 @@ void main() {
     });
 
     test('hashCode is based on id', () {
-      const a = BlockSchedule(
+      final a = BlockSchedule(
         id: 's1',
         name: 'A',
         appIdentifiers: [],
         weekdays: [],
-        startTime: TimeOfDay(hour: 0, minute: 0),
-        endTime: TimeOfDay(hour: 0, minute: 0),
+        startTime: const TimeOfDay(hour: 0, minute: 0),
+        endTime: const TimeOfDay(hour: 0, minute: 0),
       );
-      const b = BlockSchedule(
+      final b = BlockSchedule(
         id: 's1',
         name: 'B',
         appIdentifiers: [],
         weekdays: [],
-        startTime: TimeOfDay(hour: 0, minute: 0),
-        endTime: TimeOfDay(hour: 0, minute: 0),
+        startTime: const TimeOfDay(hour: 0, minute: 0),
+        endTime: const TimeOfDay(hour: 0, minute: 0),
       );
 
       expect(a.hashCode, equals(b.hashCode));
     });
 
     test('copyWith replaces fields correctly', () {
-      const original = BlockSchedule(
+      final original = BlockSchedule(
         id: 's1',
         name: 'Original',
         appIdentifiers: ['com.a'],
         weekdays: [1],
-        startTime: TimeOfDay(hour: 8, minute: 0),
-        endTime: TimeOfDay(hour: 17, minute: 0),
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 17, minute: 0),
         enabled: true,
       );
 
@@ -385,13 +385,13 @@ void main() {
     });
 
     test('toString contains id and name', () {
-      const schedule = BlockSchedule(
+      final schedule = BlockSchedule(
         id: 's1',
         name: 'Work',
         appIdentifiers: [],
         weekdays: [],
-        startTime: TimeOfDay(hour: 0, minute: 0),
-        endTime: TimeOfDay(hour: 0, minute: 0),
+        startTime: const TimeOfDay(hour: 0, minute: 0),
+        endTime: const TimeOfDay(hour: 0, minute: 0),
       );
       final str = schedule.toString();
       expect(str, contains('s1'));
@@ -461,7 +461,7 @@ void main() {
     });
 
     test('toMap produces correct structure', () {
-      const profile = BlockProfile(
+      final profile = BlockProfile(
         id: 'p1',
         name: 'Test',
         appIdentifiers: ['com.a'],
@@ -471,8 +471,8 @@ void main() {
             name: 'Inner',
             appIdentifiers: ['com.a'],
             weekdays: [1],
-            startTime: TimeOfDay(hour: 9, minute: 0),
-            endTime: TimeOfDay(hour: 17, minute: 0),
+            startTime: const TimeOfDay(hour: 9, minute: 0),
+            endTime: const TimeOfDay(hour: 17, minute: 0),
           ),
         ],
         isActive: true,
@@ -538,11 +538,7 @@ void main() {
     });
 
     test('toString contains id and name', () {
-      const profile = BlockProfile(
-        id: 'p1',
-        name: 'Work',
-        appIdentifiers: [],
-      );
+      const profile = BlockProfile(id: 'p1', name: 'Work', appIdentifiers: []);
       final str = profile.toString();
       expect(str, contains('p1'));
       expect(str, contains('Work'));
@@ -634,10 +630,7 @@ void main() {
       expect(BlockEventType.values, contains(BlockEventType.blocked));
       expect(BlockEventType.values, contains(BlockEventType.unblocked));
       expect(BlockEventType.values, contains(BlockEventType.attemptedAccess));
-      expect(
-        BlockEventType.values,
-        contains(BlockEventType.scheduleActivated),
-      );
+      expect(BlockEventType.values, contains(BlockEventType.scheduleActivated));
       expect(
         BlockEventType.values,
         contains(BlockEventType.scheduleDeactivated),
