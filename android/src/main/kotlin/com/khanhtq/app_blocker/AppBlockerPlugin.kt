@@ -47,6 +47,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         private const val GET_BLOCKED_APPS = "getBlockedApps"
         private const val GET_APP_STATUS = "getAppStatus"
         private const val SET_OVERLAY_CONFIG = "setOverlayConfig"
+        private const val GET_OVERLAY_CONFIG = "getOverlayConfig"
         private const val ADD_SCHEDULE = "addSchedule"
         private const val UPDATE_SCHEDULE = "updateSchedule"
         private const val REMOVE_SCHEDULE = "removeSchedule"
@@ -246,6 +247,26 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 }
                 preferences.overlayConfig = com.google.gson.Gson().toJson(configMap)
                 result.success(null)
+            }
+
+            GET_OVERLAY_CONFIG -> {
+                val json = preferences.overlayConfig
+                if (json == "{}") {
+                    result.success(null)
+                } else {
+                    try {
+                        val obj = org.json.JSONObject(json)
+                        val map = mutableMapOf<String, Any?>()
+                        if (obj.has("title") && !obj.isNull("title")) map["title"] = obj.getString("title")
+                        if (obj.has("subtitle") && !obj.isNull("subtitle")) map["subtitle"] = obj.getString("subtitle")
+                        if (obj.has("message") && !obj.isNull("message")) map["message"] = obj.getString("message")
+                        if (obj.has("backgroundColor") && !obj.isNull("backgroundColor")) map["backgroundColor"] = obj.getLong("backgroundColor")
+                        if (obj.has("iconAssetPath") && !obj.isNull("iconAssetPath")) map["iconAssetPath"] = obj.getString("iconAssetPath")
+                        result.success(map)
+                    } catch (_: Exception) {
+                        result.success(null)
+                    }
+                }
             }
 
             // -- Scheduling --

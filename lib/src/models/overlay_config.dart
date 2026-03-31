@@ -34,6 +34,19 @@ class OverlayConfig {
   /// Should be a Flutter asset path (e.g., `assets/icons/lock.png`).
   final String? iconAssetPath;
 
+  /// Creates an [OverlayConfig] from a map returned by the platform.
+  factory OverlayConfig.fromMap(Map<String, dynamic> map) {
+    return OverlayConfig(
+      title: map['title'] as String?,
+      subtitle: map['subtitle'] as String?,
+      message: map['message'] as String?,
+      backgroundColor: map['backgroundColor'] != null
+          ? Color(map['backgroundColor'] as int)
+          : null,
+      iconAssetPath: map['iconAssetPath'] as String?,
+    );
+  }
+
   /// Converts this instance to a map.
   Map<String, dynamic> toMap() {
     return {

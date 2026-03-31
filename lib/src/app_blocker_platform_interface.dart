@@ -104,6 +104,11 @@ abstract class AppBlockerPlatform extends PlatformInterface {
     throw UnimplementedError('setOverlayConfig() has not been implemented.');
   }
 
+  /// Returns the current overlay configuration. Returns null if none has been saved.
+  Future<OverlayConfig?> getOverlayConfig() {
+    throw UnimplementedError('getOverlayConfig() has not been implemented.');
+  }
+
   // -- Scheduling --
 
   /// Adds a new schedule.

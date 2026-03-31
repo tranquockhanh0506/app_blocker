@@ -141,6 +141,13 @@ class AppBlocker {
     return _platform.setOverlayConfig(config);
   }
 
+  /// Returns the current overlay configuration, or `null` if none has been saved.
+  ///
+  /// This only has effect on Android.
+  Future<OverlayConfig?> getOverlayConfig() {
+    return _platform.getOverlayConfig();
+  }
+
   // === Scheduling ===
 
   /// Adds a new blocking schedule.
