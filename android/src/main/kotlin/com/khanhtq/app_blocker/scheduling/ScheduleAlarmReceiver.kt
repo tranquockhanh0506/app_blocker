@@ -16,6 +16,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
 
         val blockingServiceManager = BlockingServiceManager(context)
 
+        val timestamp = System.currentTimeMillis()
+
         when (action) {
             ScheduleManager.ACTION_SCHEDULE_START -> {
                 blockingServiceManager.startBlocking(appIdentifiers)
@@ -23,7 +25,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                     mapOf(
                         "type" to "scheduleActivated",
                         "scheduleId" to scheduleId,
-                        "appIdentifiers" to appIdentifiers
+                        "appIdentifiers" to appIdentifiers,
+                        "timestamp" to timestamp,
                     )
                 )
             }
@@ -33,7 +36,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 BlockEventStreamHandler.sendEvent(
                     mapOf(
                         "type" to "scheduleDeactivated",
-                        "scheduleId" to scheduleId
+                        "scheduleId" to scheduleId,
+                        "timestamp" to timestamp,
                     )
                 )
             }

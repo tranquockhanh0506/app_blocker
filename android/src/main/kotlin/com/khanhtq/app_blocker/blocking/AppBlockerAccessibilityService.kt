@@ -100,6 +100,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         }
 
         if (shouldBlock) {
+            overlayManager.updateConfig(loadOverlayConfig())
             overlayManager.showOverlay()
             BlockEventStreamHandler.sendEvent(
                 mapOf(
@@ -110,6 +111,24 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             )
         } else {
             overlayManager.hideOverlay()
+        }
+    }
+
+    /**
+     * Reads the persisted overlay config JSON and converts it to a map
+     * that [OverlayManager.updateConfig] can consume.
+     */
+    private fun loadOverlayConfig(): Map<String, Any?> {
+        return try {
+            val obj = org.json.JSONObject(preferences.overlayConfig)
+            buildMap {
+                if (obj.has("title") && !obj.isNull("title")) put("title", obj.getString("title"))
+                if (obj.has("subtitle") && !obj.isNull("subtitle")) put("subtitle", obj.getString("subtitle"))
+                if (obj.has("message") && !obj.isNull("message")) put("message", obj.getString("message"))
+                if (obj.has("backgroundColor") && !obj.isNull("backgroundColor")) put("backgroundColor", obj.getLong("backgroundColor"))
+            }
+        } catch (_: Exception) {
+            emptyMap()
         }
     }
 

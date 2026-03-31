@@ -127,6 +127,15 @@ class MethodChannelAppBlocker extends AppBlockerPlatform {
     );
   }
 
+  @override
+  Future<OverlayConfig?> getOverlayConfig() async {
+    final result = await _invokeMethod<Map>(
+      AppBlockerConstants.getOverlayConfig,
+    );
+    if (result == null) return null;
+    return OverlayConfig.fromMap(Map<String, dynamic>.from(result));
+  }
+
   // -- Scheduling --
 
   @override
