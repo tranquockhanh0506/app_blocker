@@ -113,7 +113,7 @@ class AppBlocker {
     return _platform.unblockAll();
   }
 
-  /// Returns the list of currently blocked app identifiers.
+  /// Returns the list of currently explicitly & individually blocked app identifiers. Scheduled, profile-based and "all apps" blocks are not included in this list.
   Future<List<String>> getBlockedApps() {
     return _platform.getBlockedApps();
   }
