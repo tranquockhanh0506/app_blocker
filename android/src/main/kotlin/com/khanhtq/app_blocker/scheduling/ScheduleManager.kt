@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.khanhtq.app_blocker.blocking.BlockingServiceManager
 import com.khanhtq.app_blocker.persistence.BlockerPreferences
 import java.util.Calendar
 
@@ -104,6 +105,7 @@ class ScheduleManager(private val context: Context) {
         context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     private val preferences = BlockerPreferences(context)
     private val gson = Gson()
+    private val blockingServiceManager = BlockingServiceManager(context)
 
     // ------------------------------------------------------------------
     // CRUD
@@ -115,7 +117,10 @@ class ScheduleManager(private val context: Context) {
         val schedules = loadSchedules().toMutableList()
         schedules.add(schedule)
         saveSchedules(schedules)
-        if (schedule.enabled) registerAlarms(schedule)
+        if (schedule.enabled) {
+            registerAlarms(schedule)
+            if (isCurrentlyActive(schedule)) blockingServiceManager.startBlocking(schedule.appIdentifiers)
+        }
     }
 
     /** Replaces the schedule with the same id and refreshes its alarms. */
@@ -128,7 +133,10 @@ class ScheduleManager(private val context: Context) {
         cancelAlarms(schedules[index].id)
         schedules[index] = updated
         saveSchedules(schedules)
-        if (updated.enabled) registerAlarms(updated)
+        if (updated.enabled) {
+            registerAlarms(updated)
+            if (isCurrentlyActive(updated)) blockingServiceManager.startBlocking(updated.appIdentifiers)
+        }
     }
 
     /** Removes the schedule with [id] and cancels its alarms. */
@@ -232,6 +240,23 @@ class ScheduleManager(private val context: Context) {
     // Private helpers
     // ------------------------------------------------------------------
 
+    /**
+     * Returns true if [schedule] has a window that covers the current day and time.
+     */
+    private fun isCurrentlyActive(schedule: ScheduleData): Boolean {
+        val now = Calendar.getInstance()
+        val isoToCalendar = mapOf(1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 to 6, 6 to 7, 7 to 1)
+        val todayDow = now.get(Calendar.DAY_OF_WEEK)
+
+        val nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+        val startMinutes = schedule.startHour * 60 + schedule.startMinute
+        val endMinutes = schedule.endHour * 60 + schedule.endMinute
+
+        return schedule.weekdays.any { weekday ->
+            isoToCalendar[weekday] == todayDow && nowMinutes in startMinutes until endMinutes
+        }
+    }
+
     private fun updateEnabledState(id: String, enabled: Boolean) {
         val schedules = loadSchedules().toMutableList()
         val index = schedules.indexOfFirst { it.id == id }
@@ -242,6 +267,7 @@ class ScheduleManager(private val context: Context) {
 
         if (enabled) {
             registerAlarms(schedules[index])
+            if (isCurrentlyActive(schedules[index])) blockingServiceManager.startBlocking(schedules[index].appIdentifiers)
         } else {
             cancelAlarms(id)
         }
