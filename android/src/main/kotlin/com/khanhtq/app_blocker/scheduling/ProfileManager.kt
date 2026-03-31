@@ -6,55 +6,81 @@ import com.google.gson.reflect.TypeToken
 import com.khanhtq.app_blocker.blocking.BlockingServiceManager
 import com.khanhtq.app_blocker.persistence.BlockerPreferences
 
+/**
+ * Represents a blocking profile — a named group of apps and optional schedules
+ * that can be activated/deactivated atomically.
+ */
 data class ProfileData(
     val id: String,
     val name: String,
     val appIdentifiers: List<String>,
     val schedules: List<ScheduleData>,
-    val isActive: Boolean
+    val isActive: Boolean,
 ) {
+    /** Converts this instance to the map format sent over the Flutter channel. */
     fun toMap(): Map<String, Any?> = mapOf(
         "id" to id,
         "name" to name,
         "appIdentifiers" to appIdentifiers,
         "schedules" to schedules.map { it.toMap() },
-        "isActive" to isActive
+        "isActive" to isActive,
     )
 
     companion object {
+        /**
+         * Constructs a [ProfileData] from a Flutter channel map.
+         *
+         * List elements arrive as [List<*>]; [filterIsInstance] recovers type
+         * safety without unchecked casts.
+         */
         fun fromMap(data: Map<String, Any?>): ProfileData {
-            @Suppress("UNCHECKED_CAST")
             val appIdentifiers = (data["appIdentifiers"] as? List<*>)
-                ?.filterIsInstance<String>() ?: emptyList()
+                ?.filterIsInstance<String>()
+                ?: emptyList()
 
-            @Suppress("UNCHECKED_CAST")
-            val scheduleMaps = (data["schedules"] as? List<*>)
-                ?.filterIsInstance<Map<String, Any?>>() ?: emptyList()
-
-            val schedules = scheduleMaps.map { ScheduleData.fromMap(it) }
+            val schedules = (data["schedules"] as? List<*>)
+                ?.filterIsInstance<Map<String, Any?>>()
+                ?.map { ScheduleData.fromMap(it) }
+                ?: emptyList()
 
             return ProfileData(
                 id = data["id"] as String,
                 name = data["name"] as? String ?: "",
                 appIdentifiers = appIdentifiers,
                 schedules = schedules,
-                isActive = data["isActive"] as? Boolean ?: false
+                isActive = data["isActive"] as? Boolean ?: false,
             )
         }
     }
 }
 
+/**
+ * Creates, updates, deletes, and activates/deactivates blocking profiles.
+ *
+ * Profiles are persisted as a JSON array in [BlockerPreferences]. Activating
+ * a profile:
+ * 1. Deactivates any currently active profile.
+ * 2. Starts blocking the profile's apps via [BlockingServiceManager].
+ * 3. Registers each of the profile's nested schedules via [ScheduleManager].
+ *
+ * Deactivating reverses steps 2–3.
+ */
 class ProfileManager(private val context: Context) {
-
-    private val preferences: BlockerPreferences = BlockerPreferences(context)
-    private val gson: Gson = Gson()
-    private val scheduleManager: ScheduleManager = ScheduleManager(context)
-    private val blockingServiceManager: BlockingServiceManager = BlockingServiceManager(context)
 
     companion object {
         private const val PREFS_KEY_PROFILES = "profiles"
     }
 
+    private val preferences = BlockerPreferences(context)
+    private val gson = Gson()
+    private val scheduleManager = ScheduleManager(context)
+    private val blockingServiceManager = BlockingServiceManager(context)
+
+    // ------------------------------------------------------------------
+    // CRUD
+    // ------------------------------------------------------------------
+
+    /** Persists [data] as a new profile. */
     fun createProfile(data: Map<String, Any?>) {
         val profile = ProfileData.fromMap(data)
         val profiles = loadProfiles().toMutableList()
@@ -62,77 +88,90 @@ class ProfileManager(private val context: Context) {
         saveProfiles(profiles)
     }
 
+    /** Replaces the profile with the same id. */
     fun updateProfile(data: Map<String, Any?>) {
         val updated = ProfileData.fromMap(data)
         val profiles = loadProfiles().toMutableList()
         val index = profiles.indexOfFirst { it.id == updated.id }
+        if (index < 0) return
 
-        if (index >= 0) {
-            profiles[index] = updated
-            saveProfiles(profiles)
-        }
+        profiles[index] = updated
+        saveProfiles(profiles)
     }
 
+    /** Deletes the profile with [id], deactivating it first if necessary. */
     fun deleteProfile(id: String) {
         val profiles = loadProfiles().toMutableList()
-        val profile = profiles.find { it.id == id }
+        val profile = profiles.find { it.id == id } ?: return
 
-        if (profile != null) {
-            if (profile.isActive) {
-                deactivateProfileInternal(profile)
-            }
-            profiles.removeAll { it.id == id }
-            saveProfiles(profiles)
-        }
+        if (profile.isActive) deactivateInternal(profile)
+        profiles.removeAll { it.id == id }
+        saveProfiles(profiles)
     }
 
-    fun getProfiles(): List<Map<String, Any?>> {
-        return loadProfiles().map { it.toMap() }
-    }
+    /** Returns all profiles as wire-format maps. */
+    fun getProfiles(): List<Map<String, Any?>> = loadProfiles().map { it.toMap() }
 
+    // ------------------------------------------------------------------
+    // Activation
+    // ------------------------------------------------------------------
+
+    /**
+     * Activates the profile with [id].
+     *
+     * @throws IllegalArgumentException if no profile with [id] exists.
+     */
     fun activateProfile(id: String) {
         val profiles = loadProfiles().toMutableList()
 
+        // Deactivate any currently active profile.
         val activeIndex = profiles.indexOfFirst { it.isActive }
         if (activeIndex >= 0) {
-            deactivateProfileInternal(profiles[activeIndex])
+            deactivateInternal(profiles[activeIndex])
             profiles[activeIndex] = profiles[activeIndex].copy(isActive = false)
         }
 
         val targetIndex = profiles.indexOfFirst { it.id == id }
-        if (targetIndex >= 0) {
-            val target = profiles[targetIndex]
-            profiles[targetIndex] = target.copy(isActive = true)
-            saveProfiles(profiles)
+        if (targetIndex < 0) throw IllegalArgumentException("Profile '$id' not found.")
 
-            blockingServiceManager.startBlocking(ArrayList(target.appIdentifiers))
+        val target = profiles[targetIndex].copy(isActive = true)
+        profiles[targetIndex] = target
+        saveProfiles(profiles)
 
-            for (schedule in target.schedules) {
-                val scheduleData = schedule.toMap().toMutableMap()
-                scheduleData["enabled"] = true
-                scheduleManager.addSchedule(scheduleData)
-            }
+        // Block the profile's apps.
+        blockingServiceManager.startBlocking(target.appIdentifiers)
+
+        // Register each embedded schedule.
+        for (schedule in target.schedules) {
+            scheduleManager.addSchedule(schedule.copy(enabled = true).toMap())
         }
     }
 
+    /** Deactivates the profile with [id]. No-op if it is not active. */
     fun deactivateProfile(id: String) {
         val profiles = loadProfiles().toMutableList()
         val index = profiles.indexOfFirst { it.id == id }
+        if (index < 0) return
 
-        if (index >= 0) {
-            deactivateProfileInternal(profiles[index])
-            profiles[index] = profiles[index].copy(isActive = false)
-            saveProfiles(profiles)
-        }
+        deactivateInternal(profiles[index])
+        profiles[index] = profiles[index].copy(isActive = false)
+        saveProfiles(profiles)
     }
 
-    fun getActiveProfile(): Map<String, Any?>? {
-        return loadProfiles().find { it.isActive }?.toMap()
-    }
+    /** Returns the active profile as a wire-format map, or `null`. */
+    fun getActiveProfile(): Map<String, Any?>? =
+        loadProfiles().find { it.isActive }?.toMap()
 
-    private fun deactivateProfileInternal(profile: ProfileData) {
+    // ------------------------------------------------------------------
+    // Private helpers
+    // ------------------------------------------------------------------
+
+    /**
+     * Stops blocking the [profile]'s apps and removes its schedules.
+     * Does **not** write to storage — callers handle persistence.
+     */
+    private fun deactivateInternal(profile: ProfileData) {
         blockingServiceManager.stopBlocking()
-
         for (schedule in profile.schedules) {
             scheduleManager.removeSchedule(schedule.id)
         }
@@ -142,14 +181,13 @@ class ProfileManager(private val context: Context) {
         val json = preferences.getString(PREFS_KEY_PROFILES, null) ?: return emptyList()
         val type = object : TypeToken<List<ProfileData>>() {}.type
         return try {
-            gson.fromJson(json, type)
-        } catch (e: Exception) {
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (_: Exception) {
             emptyList()
         }
     }
 
     private fun saveProfiles(profiles: List<ProfileData>) {
-        val json = gson.toJson(profiles)
-        preferences.putString(PREFS_KEY_PROFILES, json)
+        preferences.putString(PREFS_KEY_PROFILES, gson.toJson(profiles))
     }
 }

@@ -21,13 +21,21 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * Flutter plugin entry-point for app_blocker.
+ *
+ * Wires the Dart method/event channels to the native Android managers.
+ * All method calls that may block are dispatched to [Dispatchers.Default]
+ * and the result is posted back on the main thread.
+ */
 class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
     companion object {
+        // Channel names — must match Dart AppBlockerConstants exactly.
         private const val METHOD_CHANNEL = "com.khanhtq.app_blocker/methods"
         private const val EVENT_CHANNEL = "com.khanhtq.app_blocker/events"
 
-        // Method names — must match Dart AppBlockerConstants exactly.
+        // Method names.
         private const val GET_CAPABILITIES = "getCapabilities"
         private const val CHECK_PERMISSION = "checkPermission"
         private const val REQUEST_PERMISSION = "requestPermission"
@@ -61,15 +69,11 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         const val ERROR_INVALID_CONFIG = "INVALID_CONFIG"
     }
 
-    // Channels
     private lateinit var methodChannel: MethodChannel
     private lateinit var eventChannel: EventChannel
-
-    // Android references
     private lateinit var context: Context
     private var activity: Activity? = null
 
-    // Managers
     private lateinit var permissionManager: PermissionManager
     private lateinit var appResolver: AppResolver
     private lateinit var blockingServiceManager: BlockingServiceManager
@@ -81,23 +85,20 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     private val job = Job()
     private val scope = CoroutineScope(Dispatchers.Default + job)
 
-    // ---------------------------------------------------------------
+    // ------------------------------------------------------------------
     // FlutterPlugin
-    // ---------------------------------------------------------------
+    // ------------------------------------------------------------------
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
         preferences = BlockerPreferences(context)
 
-        // Wire method channel.
         methodChannel = MethodChannel(binding.binaryMessenger, METHOD_CHANNEL)
         methodChannel.setMethodCallHandler(this)
 
-        // Wire event channel.
         eventChannel = EventChannel(binding.binaryMessenger, EVENT_CHANNEL)
         eventChannel.setStreamHandler(BlockEventStreamHandler.instance)
 
-        // Instantiate managers.
         permissionManager = PermissionManager(context)
         appResolver = AppResolver(context)
         blockingServiceManager = BlockingServiceManager(context)
@@ -111,9 +112,9 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         job.cancel()
     }
 
-    // ---------------------------------------------------------------
+    // ------------------------------------------------------------------
     // ActivityAware
-    // ---------------------------------------------------------------
+    // ------------------------------------------------------------------
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
@@ -131,9 +132,9 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         activity = null
     }
 
-    // ---------------------------------------------------------------
+    // ------------------------------------------------------------------
     // MethodCallHandler
-    // ---------------------------------------------------------------
+    // ------------------------------------------------------------------
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
@@ -141,32 +142,28 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             // -- Capabilities --
 
             GET_CAPABILITIES -> {
-                val capabilities = mapOf(
-                    "canBlockApps" to true,
-                    "canShowOverlay" to true,
-                    "canUseSystemShield" to false,
-                    "canSchedule" to true,
-                    "canGetInstalledApps" to true,
-                    "canShowActivityPicker" to false,
+                result.success(
+                    mapOf(
+                        "canBlockApps" to true,
+                        "canShowOverlay" to true,
+                        "canUseSystemShield" to false,
+                        "canSchedule" to true,
+                        "canGetInstalledApps" to true,
+                        "canShowActivityPicker" to false,
+                    )
                 )
-                result.success(capabilities)
             }
 
             // -- Permissions --
 
-            CHECK_PERMISSION -> {
-                val status = permissionManager.checkAllPermissions()
-                result.success(status)
-            }
+            CHECK_PERMISSION -> result.success(permissionManager.checkAllPermissions())
 
             REQUEST_PERMISSION -> {
-                val currentActivity = activity
-                if (currentActivity == null) {
+                val currentActivity = activity ?: run {
                     result.error(ERROR_SERVICE_UNAVAILABLE, "Activity is not available.", null)
                     return
                 }
-                val status = permissionManager.requestAllPermissions(currentActivity)
-                result.success(status)
+                result.success(permissionManager.requestAllPermissions(currentActivity))
             }
 
             // -- App Discovery --
@@ -175,9 +172,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 scope.launch {
                     try {
                         val apps = appResolver.getInstalledApps()
-                        withContext(Dispatchers.Main) {
-                            result.success(apps)
-                        }
+                        withContext(Dispatchers.Main) { result.success(apps) }
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
                             result.error(ERROR_SERVICE_UNAVAILABLE, e.message, null)
@@ -189,8 +184,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             // -- Blocking --
 
             BLOCK_APPS -> {
-                val identifiers = call.argument<List<String>>("identifiers")
-                if (identifiers == null) {
+                val identifiers = call.argument<List<String>>("identifiers") ?: run {
                     result.error(ERROR_INVALID_CONFIG, "Missing 'identifiers' argument.", null)
                     return
                 }
@@ -212,8 +206,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             }
 
             UNBLOCK_APPS -> {
-                val identifiers = call.argument<List<String>>("identifiers")
-                if (identifiers == null) {
+                val identifiers = call.argument<List<String>>("identifiers") ?: run {
                     result.error(ERROR_INVALID_CONFIG, "Missing 'identifiers' argument.", null)
                     return
                 }
@@ -226,24 +219,16 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 result.success(null)
             }
 
-            GET_BLOCKED_APPS -> {
-                val apps = blockingServiceManager.getBlockedApps().toList()
-                result.success(apps)
-            }
+            GET_BLOCKED_APPS -> result.success(blockingServiceManager.getBlockedApps().toList())
 
             GET_APP_STATUS -> {
-                val identifier = call.argument<String>("identifier")
-                if (identifier == null) {
+                val identifier = call.argument<String>("identifier") ?: run {
                     result.error(ERROR_INVALID_CONFIG, "Missing 'identifier' argument.", null)
                     return
                 }
-                val blocked = blockingServiceManager.getBlockedApps()
-                val isBlockAll = preferences.isBlockAll()
-                val isBlocking = preferences.isBlocking()
-
                 val status = when {
-                    isBlocking && isBlockAll -> "blocked"
-                    isBlocking && blocked.contains(identifier) -> "blocked"
+                    preferences.isBlocking() && preferences.isBlockAll() -> "blocked"
+                    preferences.isBlocking() && preferences.getBlockedApps().contains(identifier) -> "blocked"
                     else -> "unblocked"
                 }
                 result.success(status)
@@ -252,33 +237,22 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             // -- Overlay --
 
             SET_OVERLAY_CONFIG -> {
-                val title = call.argument<String>("title")
-                val subtitle = call.argument<String>("subtitle")
-                val message = call.argument<String>("message")
-                val backgroundColor = call.argument<Long>("backgroundColor")
-                val iconAssetPath = call.argument<String>("iconAssetPath")
-
-                val configMap = mutableMapOf<String, Any?>()
-                configMap["title"] = title
-                configMap["subtitle"] = subtitle
-                configMap["message"] = message
-                configMap["backgroundColor"] = backgroundColor
-                configMap["iconAssetPath"] = iconAssetPath
-
-                val gson = com.google.gson.Gson()
-                preferences.overlayConfig = gson.toJson(configMap)
+                val configMap = buildMap<String, Any?> {
+                    put("title", call.argument<String>("title"))
+                    put("subtitle", call.argument<String>("subtitle"))
+                    put("message", call.argument<String>("message"))
+                    put("backgroundColor", call.argument<Long>("backgroundColor"))
+                    put("iconAssetPath", call.argument<String>("iconAssetPath"))
+                }
+                preferences.overlayConfig = com.google.gson.Gson().toJson(configMap)
                 result.success(null)
             }
 
             // -- Scheduling --
 
             ADD_SCHEDULE -> {
-                @Suppress("UNCHECKED_CAST")
-                val scheduleMap = call.arguments as? Map<String, Any?>
-                if (scheduleMap == null) {
-                    result.error(ERROR_INVALID_CONFIG, "Invalid schedule data.", null)
-                    return
-                }
+                // Method channel guarantees Map<String, Any?> for object arguments.
+                val scheduleMap = requireMapArgument(call, result) ?: return
                 try {
                     scheduleManager.addSchedule(scheduleMap)
                     result.success(null)
@@ -288,12 +262,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             }
 
             UPDATE_SCHEDULE -> {
-                @Suppress("UNCHECKED_CAST")
-                val scheduleMap = call.arguments as? Map<String, Any?>
-                if (scheduleMap == null) {
-                    result.error(ERROR_INVALID_CONFIG, "Invalid schedule data.", null)
-                    return
-                }
+                val scheduleMap = requireMapArgument(call, result) ?: return
                 try {
                     scheduleManager.updateSchedule(scheduleMap)
                     result.success(null)
@@ -303,8 +272,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             }
 
             REMOVE_SCHEDULE -> {
-                val id = call.argument<String>("id")
-                if (id == null) {
+                val id = call.argument<String>("id") ?: run {
                     result.error(ERROR_INVALID_CONFIG, "Missing 'id' argument.", null)
                     return
                 }
@@ -312,14 +280,10 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 result.success(null)
             }
 
-            GET_SCHEDULES -> {
-                val schedules = scheduleManager.getSchedules()
-                result.success(schedules)
-            }
+            GET_SCHEDULES -> result.success(scheduleManager.getSchedules())
 
             ENABLE_SCHEDULE -> {
-                val id = call.argument<String>("id")
-                if (id == null) {
+                val id = call.argument<String>("id") ?: run {
                     result.error(ERROR_INVALID_CONFIG, "Missing 'id' argument.", null)
                     return
                 }
@@ -328,8 +292,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             }
 
             DISABLE_SCHEDULE -> {
-                val id = call.argument<String>("id")
-                if (id == null) {
+                val id = call.argument<String>("id") ?: run {
                     result.error(ERROR_INVALID_CONFIG, "Missing 'id' argument.", null)
                     return
                 }
@@ -340,12 +303,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             // -- Profiles --
 
             CREATE_PROFILE -> {
-                @Suppress("UNCHECKED_CAST")
-                val profileMap = call.arguments as? Map<String, Any?>
-                if (profileMap == null) {
-                    result.error(ERROR_INVALID_CONFIG, "Invalid profile data.", null)
-                    return
-                }
+                val profileMap = requireMapArgument(call, result) ?: return
                 try {
                     profileManager.createProfile(profileMap)
                     result.success(null)
@@ -355,12 +313,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             }
 
             UPDATE_PROFILE -> {
-                @Suppress("UNCHECKED_CAST")
-                val profileMap = call.arguments as? Map<String, Any?>
-                if (profileMap == null) {
-                    result.error(ERROR_INVALID_CONFIG, "Invalid profile data.", null)
-                    return
-                }
+                val profileMap = requireMapArgument(call, result) ?: return
                 try {
                     profileManager.updateProfile(profileMap)
                     result.success(null)
@@ -370,8 +323,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             }
 
             DELETE_PROFILE -> {
-                val id = call.argument<String>("id")
-                if (id == null) {
+                val id = call.argument<String>("id") ?: run {
                     result.error(ERROR_INVALID_CONFIG, "Missing 'id' argument.", null)
                     return
                 }
@@ -379,14 +331,10 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 result.success(null)
             }
 
-            GET_PROFILES -> {
-                val profiles = profileManager.getProfiles()
-                result.success(profiles)
-            }
+            GET_PROFILES -> result.success(profileManager.getProfiles())
 
             ACTIVATE_PROFILE -> {
-                val id = call.argument<String>("id")
-                if (id == null) {
+                val id = call.argument<String>("id") ?: run {
                     result.error(ERROR_INVALID_CONFIG, "Missing 'id' argument.", null)
                     return
                 }
@@ -399,8 +347,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             }
 
             DEACTIVATE_PROFILE -> {
-                val id = call.argument<String>("id")
-                if (id == null) {
+                val id = call.argument<String>("id") ?: run {
                     result.error(ERROR_INVALID_CONFIG, "Missing 'id' argument.", null)
                     return
                 }
@@ -408,12 +355,32 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 result.success(null)
             }
 
-            GET_ACTIVE_PROFILE -> {
-                val profile = profileManager.getActiveProfile()
-                result.success(profile)
-            }
+            GET_ACTIVE_PROFILE -> result.success(profileManager.getActiveProfile())
 
             else -> result.notImplemented()
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+
+    /**
+     * Extracts [MethodCall.arguments] as `Map<String, Any?>`, sending an
+     * [ERROR_INVALID_CONFIG] error and returning `null` if the arguments
+     * are not a map.
+     *
+     * Flutter's method channel guarantees that object arguments arrive as
+     * `Map<String, Any?>` when sent from Dart as a `Map<String, dynamic>`.
+     * The unchecked cast is therefore safe; the suppress is intentional.
+     */
+    private fun requireMapArgument(call: MethodCall, result: Result): Map<String, Any?>? {
+        val raw = call.arguments
+        if (raw !is Map<*, *>) {
+            result.error(ERROR_INVALID_CONFIG, "Expected a map argument for '${call.method}'.", null)
+            return null
+        }
+        @Suppress("UNCHECKED_CAST") // Safe: Flutter channel always uses String keys with Any? values
+        return raw as Map<String, Any?>
     }
 }

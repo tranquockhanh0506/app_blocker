@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 /// Represents a time-based schedule for blocking apps.
 class BlockSchedule {
   /// Creates a [BlockSchedule] instance.
-  const BlockSchedule({
+  ///
+  /// Throws [ArgumentError] if any weekday is outside the ISO 8601 range
+  /// (1–7) or if [appIdentifiers] is empty.
+  BlockSchedule({
     required this.id,
     required this.name,
     required this.appIdentifiers,
@@ -11,7 +14,17 @@ class BlockSchedule {
     required this.startTime,
     required this.endTime,
     this.enabled = true,
-  });
+  }) {
+    for (final day in weekdays) {
+      if (day < 1 || day > 7) {
+        throw ArgumentError.value(
+          day,
+          'weekdays',
+          'Weekday must be an ISO 8601 value between 1 (Monday) and 7 (Sunday).',
+        );
+      }
+    }
+  }
 
   /// Unique identifier for this schedule.
   final String id;
@@ -21,12 +34,14 @@ class BlockSchedule {
 
   /// List of app identifiers to block during this schedule.
   ///
-  /// On Android, these are package names. On iOS, these are opaque tokens.
+  /// On Android, these are package names. On iOS, these are opaque tokens
+  /// obtained from [FamilyActivityPicker].
   final List<String> appIdentifiers;
 
   /// Days of the week when this schedule is active.
   ///
   /// Uses ISO 8601 numbering: 1 = Monday, 7 = Sunday.
+  /// All values must be in the range 1–7.
   final List<int> weekdays;
 
   /// The time of day when blocking starts.
@@ -59,7 +74,7 @@ class BlockSchedule {
     );
   }
 
-  /// Creates a [BlockSchedule] from a map.
+  /// Creates a [BlockSchedule] from a platform channel map.
   factory BlockSchedule.fromMap(Map<String, dynamic> map) {
     return BlockSchedule(
       id: map['id'] as String,
@@ -78,7 +93,7 @@ class BlockSchedule {
     );
   }
 
-  /// Converts this instance to a map.
+  /// Converts this instance to a platform channel map.
   Map<String, dynamic> toMap() {
     return {
       'id': id,

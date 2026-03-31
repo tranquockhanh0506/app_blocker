@@ -244,10 +244,7 @@ void main() {
   group('getApps', () {
     test('returns list of AppInfo', () async {
       mockPlatform.appsResult = [
-        const AppInfo(
-          packageName: 'com.example.app1',
-          appName: 'App One',
-        ),
+        const AppInfo(packageName: 'com.example.app1', appName: 'App One'),
         const AppInfo(
           packageName: 'com.example.app2',
           appName: 'App Two',
@@ -366,16 +363,20 @@ void main() {
       final events = <BlockEvent>[];
       final sub = blocker.onBlockEvent.listen(events.add);
 
-      mockPlatform.emitEvent(BlockEvent(
-        type: BlockEventType.blocked,
-        timestamp: DateTime(2026, 1, 1),
-        packageName: 'app1',
-      ));
-      mockPlatform.emitEvent(BlockEvent(
-        type: BlockEventType.unblocked,
-        timestamp: DateTime(2026, 1, 2),
-        packageName: 'app1',
-      ));
+      mockPlatform.emitEvent(
+        BlockEvent(
+          type: BlockEventType.blocked,
+          timestamp: DateTime(2026, 1, 1),
+          packageName: 'app1',
+        ),
+      );
+      mockPlatform.emitEvent(
+        BlockEvent(
+          type: BlockEventType.unblocked,
+          timestamp: DateTime(2026, 1, 2),
+          packageName: 'app1',
+        ),
+      );
 
       // Let microtasks complete.
       await Future<void>.delayed(Duration.zero);
@@ -408,13 +409,13 @@ void main() {
   // == Scheduling ==
 
   group('schedule CRUD', () {
-    const schedule = BlockSchedule(
+    final schedule = BlockSchedule(
       id: 'sched-1',
       name: 'Work Hours',
       appIdentifiers: ['com.example.app1'],
       weekdays: [1, 2, 3, 4, 5],
-      startTime: TimeOfDay(hour: 9, minute: 0),
-      endTime: TimeOfDay(hour: 17, minute: 0),
+      startTime: const TimeOfDay(hour: 9, minute: 0),
+      endTime: const TimeOfDay(hour: 17, minute: 0),
     );
 
     test('addSchedule completes', () async {

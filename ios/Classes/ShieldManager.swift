@@ -2,20 +2,65 @@ import Foundation
 import ManagedSettings
 import FamilyControls
 
+/// Manages the Screen Time shield that blocks apps on iOS 15+.
+///
+/// Apple's `ApplicationToken` and `ActivityCategoryToken` are opaque values
+/// that cannot be constructed from a string identifier — they are obtained
+/// only through a `FamilyActivityPicker` or a `FamilyActivitySelection`. This
+/// class therefore maintains a two-level persistence strategy:
+///
+/// 1. **Token mappings** — a dictionary from a stable string identifier to the
+///    raw `Data` of the encoded token, stored in `UserDefaults`.
+/// 2. **Active token sets** — the in-memory sets of tokens currently applied
+///    to the `ManagedSettingsStore`.
+///
+/// Both dictionaries are synchronised through a concurrent dispatch queue with
+/// barrier writes to prevent race conditions on background threads.
+///
+/// - Note: All public methods are safe to call from any thread.
 @available(iOS 15.0, *)
 class ShieldManager: NSObject {
+
+    // MARK: - Private state
+
     private let store = ManagedSettingsStore()
+
+    private let queue = DispatchQueue(
+        label: "com.khanhtq.app_blocker.ShieldManager",
+        attributes: .concurrent
+    )
+
+    private var _blockedApplicationTokens: Set<ApplicationToken> = []
+    private var _blockedCategoryTokens: Set<ActivityCategoryToken> = []
+    private var _identifierToAppTokenData: [String: Data] = [:]
+    private var _identifierToCategoryTokenData: [String: Data] = [:]
+
     private let userDefaultsKey = "app_blocker_token_mappings"
     private let blockedAllKey = "app_blocker_blocked_all"
 
-    // In-memory tracking of blocked tokens
-    private var blockedApplicationTokens: Set<ApplicationToken> = []
-    private var blockedCategoryTokens: Set<ActivityCategoryToken> = []
+    // MARK: - Thread-safe accessors
 
-    // Map of identifier strings to serialized token data
-    // Since ApplicationToken is opaque, we store identifier -> token association
-    private var identifierToAppTokenData: [String: Data] = [:]
-    private var identifierToCategoryTokenData: [String: Data] = [:]
+    private var blockedApplicationTokens: Set<ApplicationToken> {
+        get { queue.sync { _blockedApplicationTokens } }
+        set { queue.async(flags: .barrier) { self._blockedApplicationTokens = newValue } }
+    }
+
+    private var blockedCategoryTokens: Set<ActivityCategoryToken> {
+        get { queue.sync { _blockedCategoryTokens } }
+        set { queue.async(flags: .barrier) { self._blockedCategoryTokens = newValue } }
+    }
+
+    private var identifierToAppTokenData: [String: Data] {
+        get { queue.sync { _identifierToAppTokenData } }
+        set { queue.async(flags: .barrier) { self._identifierToAppTokenData = newValue } }
+    }
+
+    private var identifierToCategoryTokenData: [String: Data] {
+        get { queue.sync { _identifierToCategoryTokenData } }
+        set { queue.async(flags: .barrier) { self._identifierToCategoryTokenData = newValue } }
+    }
+
+    // MARK: - Initialisation
 
     override init() {
         super.init()
@@ -24,207 +69,213 @@ class ShieldManager: NSObject {
 
     // MARK: - Public API
 
+    /// Shields the apps whose tokens were previously stored for [identifiers].
+    ///
+    /// Identifiers that have no stored token (e.g. because the app was selected
+    /// via the system picker under a different identifier key) are silently
+    /// skipped — the caller should use `blockWithSelection` when a fresh
+    /// `FamilyActivitySelection` is available.
     func blockApps(identifiers: [String]) {
-        // Load existing tokens from storage
-        var appTokens = blockedApplicationTokens
-        var catTokens = blockedCategoryTokens
+        queue.async(flags: .barrier) {
+            let decoder = JSONDecoder()
+            var appTokens = self._blockedApplicationTokens
+            var catTokens = self._blockedCategoryTokens
 
-        // Try to restore tokens for known identifiers
-        for identifier in identifiers {
-            if let data = identifierToAppTokenData[identifier],
-               let token = try? JSONDecoder().decode(ApplicationToken.self, from: data) {
-                appTokens.insert(token)
+            for identifier in identifiers {
+                if let data = self._identifierToAppTokenData[identifier] {
+                    do {
+                        let token = try decoder.decode(ApplicationToken.self, from: data)
+                        appTokens.insert(token)
+                    } catch {
+                        // Token data is stale or format changed; remove the stale entry.
+                        self._identifierToAppTokenData.removeValue(forKey: identifier)
+                    }
+                }
+                if let data = self._identifierToCategoryTokenData[identifier] {
+                    do {
+                        let token = try decoder.decode(ActivityCategoryToken.self, from: data)
+                        catTokens.insert(token)
+                    } catch {
+                        self._identifierToCategoryTokenData.removeValue(forKey: identifier)
+                    }
+                }
             }
-            if let data = identifierToCategoryTokenData[identifier],
-               let token = try? JSONDecoder().decode(ActivityCategoryToken.self, from: data) {
-                catTokens.insert(token)
-            }
+
+            self._blockedApplicationTokens = appTokens
+            self._blockedCategoryTokens = catTokens
+            self.applyShieldUnsafe()
+            self.saveTokenMappingsUnsafe()
         }
-
-        blockedApplicationTokens = appTokens
-        blockedCategoryTokens = catTokens
-
-        applyShield()
-        saveBlockedState()
     }
 
+    /// Applies a `FamilyActivitySelection` directly, storing the tokens for
+    /// future use with `blockApps` / `unblockApps`.
     func blockWithSelection(selection: FamilyActivitySelection) {
-        blockedApplicationTokens = selection.applicationTokens
-        blockedCategoryTokens = selection.categoryTokens
-
-        // Store token mappings for persistence
-        storeTokensFromSelection(selection: selection)
-        applyShield()
-        saveBlockedState()
+        queue.async(flags: .barrier) {
+            self._blockedApplicationTokens = selection.applicationTokens
+            self._blockedCategoryTokens = selection.categoryTokens
+            self.storeTokensFromSelectionUnsafe(selection: selection)
+            self.applyShieldUnsafe()
+            self.saveTokenMappingsUnsafe()
+        }
     }
 
+    /// Blocks all app categories via the `ManagedSettingsStore`.
     func blockAll() {
         store.shield.applicationCategories = .all()
         UserDefaults.standard.set(true, forKey: blockedAllKey)
     }
 
+    /// Removes the shield for [identifiers] that were previously blocked.
     func unblockApps(identifiers: [String]) {
-        for identifier in identifiers {
-            if let data = identifierToAppTokenData[identifier],
-               let token = try? JSONDecoder().decode(ApplicationToken.self, from: data) {
-                blockedApplicationTokens.remove(token)
+        queue.async(flags: .barrier) {
+            let decoder = JSONDecoder()
+            for identifier in identifiers {
+                if let data = self._identifierToAppTokenData[identifier] {
+                    if let token = try? decoder.decode(ApplicationToken.self, from: data) {
+                        self._blockedApplicationTokens.remove(token)
+                    }
+                }
+                if let data = self._identifierToCategoryTokenData[identifier] {
+                    if let token = try? decoder.decode(ActivityCategoryToken.self, from: data) {
+                        self._blockedCategoryTokens.remove(token)
+                    }
+                }
             }
-            if let data = identifierToCategoryTokenData[identifier],
-               let token = try? JSONDecoder().decode(ActivityCategoryToken.self, from: data) {
-                blockedCategoryTokens.remove(token)
-            }
+            self.applyShieldUnsafe()
+            self.saveTokenMappingsUnsafe()
         }
-
-        applyShield()
-        saveBlockedState()
     }
 
+    /// Removes all shields and clears persisted state.
     func unblockAll() {
-        store.shield.applications = nil
-        store.shield.applicationCategories = nil
-        blockedApplicationTokens = []
-        blockedCategoryTokens = []
-        UserDefaults.standard.set(false, forKey: blockedAllKey)
-        saveBlockedState()
+        queue.async(flags: .barrier) {
+            self._blockedApplicationTokens = []
+            self._blockedCategoryTokens = []
+            self.store.shield.applications = nil
+            self.store.shield.applicationCategories = nil
+            UserDefaults.standard.set(false, forKey: self.blockedAllKey)
+            self.saveTokenMappingsUnsafe()
+        }
     }
 
+    /// Returns the identifiers of currently blocked apps, or `["__all__"]` if
+    /// block-all mode is active.
     func getBlockedApps() -> [String] {
-        let isBlockedAll = UserDefaults.standard.bool(forKey: blockedAllKey)
-        if isBlockedAll {
+        if UserDefaults.standard.bool(forKey: blockedAllKey) {
             return ["__all__"]
         }
 
-        // Return all identifiers that have active tokens
-        var result: [String] = []
-        for (identifier, data) in identifierToAppTokenData {
-            if let token = try? JSONDecoder().decode(ApplicationToken.self, from: data),
-               blockedApplicationTokens.contains(token) {
-                result.append(identifier)
-            }
-        }
-        for (identifier, data) in identifierToCategoryTokenData {
-            if let token = try? JSONDecoder().decode(ActivityCategoryToken.self, from: data),
-               blockedCategoryTokens.contains(token) {
-                if !result.contains(identifier) {
+        return queue.sync {
+            let decoder = JSONDecoder()
+            var result: [String] = []
+
+            for (identifier, data) in _identifierToAppTokenData {
+                if let token = try? decoder.decode(ApplicationToken.self, from: data),
+                   _blockedApplicationTokens.contains(token) {
                     result.append(identifier)
                 }
             }
+            for (identifier, data) in _identifierToCategoryTokenData {
+                if let token = try? decoder.decode(ActivityCategoryToken.self, from: data),
+                   _blockedCategoryTokens.contains(token),
+                   !result.contains(identifier) {
+                    result.append(identifier)
+                }
+            }
+            return result
         }
-        return result
     }
 
-    // MARK: - Token Selection Storage
+    // MARK: - Selection storage (called from ActivityPickerCoordinator)
 
+    /// Stores the tokens from [selection] under auto-generated identifier keys.
     func storeTokensFromSelection(selection: FamilyActivitySelection) {
-        let encoder = JSONEncoder()
-
-        // Store application tokens with generated identifiers
-        var appIndex = 0
-        for token in selection.applicationTokens {
-            let identifier = "app_token_\(appIndex)"
-            if let data = try? encoder.encode(token) {
-                identifierToAppTokenData[identifier] = data
-            }
-            appIndex += 1
+        queue.async(flags: .barrier) {
+            self.storeTokensFromSelectionUnsafe(selection: selection)
+            self.saveTokenMappingsUnsafe()
         }
-
-        // Store category tokens with generated identifiers
-        var catIndex = 0
-        for token in selection.categoryTokens {
-            let identifier = "cat_token_\(catIndex)"
-            if let data = try? encoder.encode(token) {
-                identifierToCategoryTokenData[identifier] = data
-            }
-            catIndex += 1
-        }
-
-        saveTokenMappings()
     }
 
+    /// Returns a summary of currently blocked tokens (index-keyed identifiers).
     func getSelectionInfo() -> [[String: Any]] {
-        var result: [[String: Any]] = []
+        return queue.sync {
+            var result: [[String: Any]] = []
+            let decoder = JSONDecoder()
 
-        // Return info about blocked app tokens
-        var appIndex = 0
-        for _ in blockedApplicationTokens {
-            let identifier = "app_token_\(appIndex)"
-            result.append([
-                "packageName": identifier,
-                "appName": "App \(appIndex)",
-                "isSystemApp": false,
-            ])
-            appIndex += 1
+            for (index, _) in _blockedApplicationTokens.enumerated() {
+                result.append([
+                    "packageName": "app_token_\(index)",
+                    "appName": "App \(index)",
+                    "isSystemApp": false,
+                ])
+            }
+            for (index, _) in _blockedCategoryTokens.enumerated() {
+                result.append([
+                    "packageName": "cat_token_\(index)",
+                    "appName": "Category \(index)",
+                    "isSystemApp": false,
+                ])
+            }
+            return result
         }
-
-        // Return info about blocked category tokens
-        var catIndex = 0
-        for _ in blockedCategoryTokens {
-            let identifier = "cat_token_\(catIndex)"
-            result.append([
-                "packageName": identifier,
-                "appName": "Category \(catIndex)",
-                "isSystemApp": false,
-            ])
-            catIndex += 1
-        }
-
-        return result
     }
 
-    // MARK: - Private Helpers
+    // MARK: - Private helpers (must be called within queue)
 
-    private func applyShield() {
-        store.shield.applications = blockedApplicationTokens.isEmpty ? nil : blockedApplicationTokens
-        if blockedCategoryTokens.isEmpty {
+    /// Applies the current in-memory token sets to the `ManagedSettingsStore`.
+    /// **Caller must hold the queue write lock.**
+    private func applyShieldUnsafe() {
+        store.shield.applications = _blockedApplicationTokens.isEmpty ? nil : _blockedApplicationTokens
+        if _blockedCategoryTokens.isEmpty {
             store.shield.applicationCategories = nil
         } else {
-            store.shield.applicationCategories = .specific(blockedCategoryTokens)
+            store.shield.applicationCategories = .specific(_blockedCategoryTokens)
         }
     }
 
-    private func saveBlockedState() {
-        saveTokenMappings()
+    /// Stores tokens from a selection under sequential identifier keys.
+    /// **Caller must hold the queue write lock.**
+    private func storeTokensFromSelectionUnsafe(selection: FamilyActivitySelection) {
+        let encoder = JSONEncoder()
+        for (index, token) in selection.applicationTokens.enumerated() {
+            if let data = try? encoder.encode(token) {
+                _identifierToAppTokenData["app_token_\(index)"] = data
+            }
+        }
+        for (index, token) in selection.categoryTokens.enumerated() {
+            if let data = try? encoder.encode(token) {
+                _identifierToCategoryTokenData["cat_token_\(index)"] = data
+            }
+        }
     }
 
-    private func saveTokenMappings() {
+    /// Serialises all state to `UserDefaults`.
+    /// **Caller must hold the queue write lock.**
+    private func saveTokenMappingsUnsafe() {
         let encoder = JSONEncoder()
 
-        // Convert Data values to Base64 strings for UserDefaults compatibility
-        var appMappings: [String: String] = [:]
-        for (key, data) in identifierToAppTokenData {
-            appMappings[key] = data.base64EncodedString()
-        }
+        let appMappings = _identifierToAppTokenData.compactMapValues { $0.base64EncodedString() }
+        let catMappings = _identifierToCategoryTokenData.compactMapValues { $0.base64EncodedString() }
 
-        var catMappings: [String: String] = [:]
-        for (key, data) in identifierToCategoryTokenData {
-            catMappings[key] = data.base64EncodedString()
+        let blockedAppTokens: [String] = _blockedApplicationTokens.compactMap {
+            (try? encoder.encode($0))?.base64EncodedString()
         }
-
-        // Store blocked token identifiers
-        let blockedAppIds: [String] = blockedApplicationTokens.compactMap { token in
-            if let data = try? encoder.encode(token) {
-                return data.base64EncodedString()
-            }
-            return nil
-        }
-
-        let blockedCatIds: [String] = blockedCategoryTokens.compactMap { token in
-            if let data = try? encoder.encode(token) {
-                return data.base64EncodedString()
-            }
-            return nil
+        let blockedCatTokens: [String] = _blockedCategoryTokens.compactMap {
+            (try? encoder.encode($0))?.base64EncodedString()
         }
 
         let storage: [String: Any] = [
             "appMappings": appMappings,
             "catMappings": catMappings,
-            "blockedAppTokens": blockedAppIds,
-            "blockedCatTokens": blockedCatIds,
+            "blockedAppTokens": blockedAppTokens,
+            "blockedCatTokens": blockedCatTokens,
         ]
-
         UserDefaults.standard.set(storage, forKey: userDefaultsKey)
     }
 
+    /// Loads persisted token state from `UserDefaults` into the in-memory stores.
+    /// Called once from `init()` — no lock needed at that point.
     private func loadTokenMappings() {
         guard let storage = UserDefaults.standard.dictionary(forKey: userDefaultsKey) else {
             return
@@ -232,11 +283,10 @@ class ShieldManager: NSObject {
 
         let decoder = JSONDecoder()
 
-        // Restore identifier-to-token mappings
         if let appMappings = storage["appMappings"] as? [String: String] {
             for (key, base64) in appMappings {
                 if let data = Data(base64Encoded: base64) {
-                    identifierToAppTokenData[key] = data
+                    _identifierToAppTokenData[key] = data
                 }
             }
         }
@@ -244,26 +294,31 @@ class ShieldManager: NSObject {
         if let catMappings = storage["catMappings"] as? [String: String] {
             for (key, base64) in catMappings {
                 if let data = Data(base64Encoded: base64) {
-                    identifierToCategoryTokenData[key] = data
+                    _identifierToCategoryTokenData[key] = data
                 }
             }
         }
 
-        // Restore blocked token sets
         if let blockedAppIds = storage["blockedAppTokens"] as? [String] {
             for base64 in blockedAppIds {
-                if let data = Data(base64Encoded: base64),
-                   let token = try? decoder.decode(ApplicationToken.self, from: data) {
-                    blockedApplicationTokens.insert(token)
+                guard let data = Data(base64Encoded: base64) else { continue }
+                do {
+                    let token = try decoder.decode(ApplicationToken.self, from: data)
+                    _blockedApplicationTokens.insert(token)
+                } catch {
+                    // Token format changed across OS versions; discard silently.
                 }
             }
         }
 
         if let blockedCatIds = storage["blockedCatTokens"] as? [String] {
             for base64 in blockedCatIds {
-                if let data = Data(base64Encoded: base64),
-                   let token = try? decoder.decode(ActivityCategoryToken.self, from: data) {
-                    blockedCategoryTokens.insert(token)
+                guard let data = Data(base64Encoded: base64) else { continue }
+                do {
+                    let token = try decoder.decode(ActivityCategoryToken.self, from: data)
+                    _blockedCategoryTokens.insert(token)
+                } catch {
+                    // Token format changed across OS versions; discard silently.
                 }
             }
         }

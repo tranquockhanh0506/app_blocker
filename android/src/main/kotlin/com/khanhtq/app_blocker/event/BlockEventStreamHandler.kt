@@ -5,50 +5,62 @@ import android.os.Looper
 import io.flutter.plugin.common.EventChannel
 
 /**
- * Singleton [EventChannel.StreamHandler] that allows any component (including
- * the blocking service) to push events to the Flutter side.
+ * Singleton [EventChannel.StreamHandler] that delivers block events to Flutter.
  *
- * Events are always dispatched on the main thread so that the Flutter
- * engine's [EventChannel.EventSink] is called from the correct looper.
+ * Any component — including [com.khanhtq.app_blocker.blocking.AppBlockerAccessibilityService]
+ * and the scheduling receivers — can call [sendEvent] from any thread. Events
+ * are always posted to the main looper before being forwarded to the Flutter
+ * engine, which is the only thread on which [EventChannel.EventSink.success]
+ * may be called safely.
  *
- * Supports two calling conventions:
+ * ### Calling conventions
  *
- * 1. **Instance-based** (preferred, from the plugin):
- *    ```
- *    BlockEventStreamHandler.instance.sendEvent("blocked", packageName = "com.example")
- *    ```
+ * **Instance-based** (from the plugin, where the instance is readily accessible):
+ * ```kotlin
+ * BlockEventStreamHandler.instance.sendEvent("blocked", packageName = "com.example.app")
+ * ```
  *
- * 2. **Static map-based** (used by BlockingService and other components):
- *    ```
- *    BlockEventStreamHandler.sendEvent(mapOf("type" to "blocked", "packageName" to "com.example", "timestamp" to millis))
- *    ```
+ * **Static map-based** (from services and receivers that only have access to
+ * the companion object via a static import):
+ * ```kotlin
+ * BlockEventStreamHandler.sendEvent(
+ *     mapOf("type" to "blocked", "packageName" to "com.example.app", "timestamp" to millis)
+ * )
+ * ```
  */
 class BlockEventStreamHandler private constructor() : EventChannel.StreamHandler {
 
     companion object {
-        /** Single shared instance. */
+        /** Shared instance registered with the [EventChannel]. */
         val instance: BlockEventStreamHandler by lazy { BlockEventStreamHandler() }
 
         private val mainHandler = Handler(Looper.getMainLooper())
 
         /**
-         * Static convenience method for sending a pre-built event map.
-         * Used by [com.khanhtq.app_blocker.blocking.BlockingService] and
-         * other components that construct their own event maps.
+         * Posts [event] to the Flutter sink on the main thread.
+         * Safe to call from any thread. No-ops if no listener is attached.
          */
         @JvmStatic
         fun sendEvent(event: Map<String, Any?>) {
+            // Snapshot the sink reference once to avoid TOCTOU races.
             val sink = instance.eventSink ?: return
+
             if (Looper.myLooper() == Looper.getMainLooper()) {
                 sink.success(event)
             } else {
-                mainHandler.post {
-                    sink.success(event)
-                }
+                mainHandler.post { sink.success(event) }
             }
         }
     }
 
+    /**
+     * The active Flutter event sink.
+     *
+     * Marked [@Volatile] so that reads in [sendEvent] (potentially on a
+     * background thread) always observe the most recent write from the main
+     * thread inside [onListen] / [onCancel].
+     */
+    @Volatile
     private var eventSink: EventChannel.EventSink? = null
 
     // ------------------------------------------------------------------
@@ -64,27 +76,26 @@ class BlockEventStreamHandler private constructor() : EventChannel.StreamHandler
     }
 
     // ------------------------------------------------------------------
-    // Instance-based API
+    // Instance API
     // ------------------------------------------------------------------
 
     /**
-     * Sends a block event to the Flutter side.
+     * Sends a typed block event to Flutter.
      *
-     * @param type        One of the [BlockEventType] name strings understood
-     *                    by the Dart `BlockEventType.values.byName()` call:
+     * @param type        Event type matching Dart's `BlockEventType` values:
      *                    `"blocked"`, `"unblocked"`, `"attemptedAccess"`,
      *                    `"scheduleActivated"`, `"scheduleDeactivated"`.
-     * @param packageName The package name of the affected app, or `null`.
-     * @param scheduleId  The schedule id that triggered this event, or `null`.
+     * @param packageName Package name of the affected app, or `null`.
+     * @param scheduleId  ID of the schedule that triggered the event, or `null`.
      */
     fun sendEvent(type: String, packageName: String? = null, scheduleId: String? = null) {
-        val event = mutableMapOf<String, Any?>(
-            "type" to type,
-            "packageName" to packageName,
-            "scheduleId" to scheduleId,
-            "timestamp" to System.currentTimeMillis(),
+        sendEvent(
+            buildMap {
+                put("type", type)
+                put("timestamp", System.currentTimeMillis())
+                if (packageName != null) put("packageName", packageName)
+                if (scheduleId != null) put("scheduleId", scheduleId)
+            }
         )
-
-        Companion.sendEvent(event)
     }
 }

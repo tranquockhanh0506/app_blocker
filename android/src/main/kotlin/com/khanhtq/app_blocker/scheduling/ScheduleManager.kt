@@ -10,17 +10,26 @@ import com.google.gson.reflect.TypeToken
 import com.khanhtq.app_blocker.persistence.BlockerPreferences
 import java.util.Calendar
 
+/**
+ * Represents a single time-based blocking schedule.
+ *
+ * Instances are serialised to / from JSON via Gson and stored in
+ * [BlockerPreferences]. [toMap] converts to the wire format expected by
+ * the Dart side.
+ */
 data class ScheduleData(
     val id: String,
     val name: String,
     val appIdentifiers: List<String>,
+    /** ISO 8601 weekday numbers: 1 = Monday … 7 = Sunday. */
     val weekdays: List<Int>,
     val startHour: Int,
     val startMinute: Int,
     val endHour: Int,
     val endMinute: Int,
-    val enabled: Boolean
+    val enabled: Boolean,
 ) {
+    /** Converts this instance to the map format sent over the Flutter channel. */
     fun toMap(): Map<String, Any?> = mapOf(
         "id" to id,
         "name" to name,
@@ -30,18 +39,25 @@ data class ScheduleData(
         "startMinute" to startMinute,
         "endHour" to endHour,
         "endMinute" to endMinute,
-        "enabled" to enabled
+        "enabled" to enabled,
     )
 
     companion object {
+        /**
+         * Constructs a [ScheduleData] from a Flutter channel map.
+         *
+         * List elements come across as heterogeneous [List<*>]; we use
+         * [filterIsInstance] / [map] to recover type safety without
+         * unchecked casts.
+         */
         fun fromMap(data: Map<String, Any?>): ScheduleData {
-            @Suppress("UNCHECKED_CAST")
             val appIdentifiers = (data["appIdentifiers"] as? List<*>)
-                ?.filterIsInstance<String>() ?: emptyList()
+                ?.filterIsInstance<String>()
+                ?: emptyList()
 
-            @Suppress("UNCHECKED_CAST")
             val weekdays = (data["weekdays"] as? List<*>)
-                ?.map { (it as Number).toInt() } ?: emptyList()
+                ?.mapNotNull { (it as? Number)?.toInt() }
+                ?: emptyList()
 
             return ScheduleData(
                 id = data["id"] as String,
@@ -52,217 +68,232 @@ data class ScheduleData(
                 startMinute = (data["startMinute"] as Number).toInt(),
                 endHour = (data["endHour"] as Number).toInt(),
                 endMinute = (data["endMinute"] as Number).toInt(),
-                enabled = data["enabled"] as? Boolean ?: true
+                enabled = data["enabled"] as? Boolean ?: true,
             )
         }
     }
 }
 
+/**
+ * Creates, updates, removes, and alarms-manages time-based blocking schedules.
+ *
+ * Schedules are persisted as a JSON array in [BlockerPreferences]. When a
+ * schedule is enabled, [registerAlarms] programs [AlarmManager] to fire
+ * [ScheduleAlarmReceiver] at the start and end times for each configured
+ * weekday. Alarms are exact (`setExactAndAllowWhileIdle`) so they fire even
+ * in Doze mode.
+ */
 class ScheduleManager(private val context: Context) {
-
-    private val alarmManager: AlarmManager =
-        context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    private val preferences: BlockerPreferences = BlockerPreferences(context)
-    private val gson: Gson = Gson()
 
     companion object {
         private const val PREFS_KEY_SCHEDULES = "schedules"
+
         const val ACTION_SCHEDULE_START = "com.khanhtq.app_blocker.SCHEDULE_START"
         const val ACTION_SCHEDULE_END = "com.khanhtq.app_blocker.SCHEDULE_END"
         const val EXTRA_SCHEDULE_ID = "schedule_id"
         const val EXTRA_APP_IDENTIFIERS = "app_identifiers"
-        private const val REQUEST_CODE_START_BASE = 10000
-        private const val REQUEST_CODE_END_BASE = 20000
+
+        // Request-code bases used to generate unique alarm request codes per
+        // schedule+weekday+start/end combination.
+        private const val REQUEST_CODE_START_BASE = 10_000
+        private const val REQUEST_CODE_END_BASE = 20_000
         private const val MAX_WEEKDAYS = 7
     }
 
+    private val alarmManager: AlarmManager =
+        context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    private val preferences = BlockerPreferences(context)
+    private val gson = Gson()
+
+    // ------------------------------------------------------------------
+    // CRUD
+    // ------------------------------------------------------------------
+
+    /** Persists [data] as a new schedule and registers its alarms if enabled. */
     fun addSchedule(data: Map<String, Any?>) {
         val schedule = ScheduleData.fromMap(data)
         val schedules = loadSchedules().toMutableList()
         schedules.add(schedule)
         saveSchedules(schedules)
-
-        if (schedule.enabled) {
-            registerAlarms(schedule)
-        }
+        if (schedule.enabled) registerAlarms(schedule)
     }
 
+    /** Replaces the schedule with the same id and refreshes its alarms. */
     fun updateSchedule(data: Map<String, Any?>) {
         val updated = ScheduleData.fromMap(data)
         val schedules = loadSchedules().toMutableList()
         val index = schedules.indexOfFirst { it.id == updated.id }
+        if (index < 0) return
 
-        if (index >= 0) {
-            cancelAlarms(schedules[index].id)
-            schedules[index] = updated
-            saveSchedules(schedules)
-
-            if (updated.enabled) {
-                registerAlarms(updated)
-            }
-        }
+        cancelAlarms(schedules[index].id)
+        schedules[index] = updated
+        saveSchedules(schedules)
+        if (updated.enabled) registerAlarms(updated)
     }
 
+    /** Removes the schedule with [id] and cancels its alarms. */
     fun removeSchedule(id: String) {
         val schedules = loadSchedules().toMutableList()
-        val removed = schedules.removeAll { it.id == id }
-
-        if (removed) {
+        if (schedules.removeAll { it.id == id }) {
             cancelAlarms(id)
             saveSchedules(schedules)
         }
     }
 
-    fun getSchedules(): List<Map<String, Any?>> {
-        return loadSchedules().map { it.toMap() }
-    }
+    /** Returns all schedules as wire-format maps. */
+    fun getSchedules(): List<Map<String, Any?>> = loadSchedules().map { it.toMap() }
 
+    /** Enables the schedule with [id] and registers its alarms. */
     fun enableSchedule(id: String) {
-        val schedules = loadSchedules().toMutableList()
-        val index = schedules.indexOfFirst { it.id == id }
-
-        if (index >= 0) {
-            schedules[index] = schedules[index].copy(enabled = true)
-            saveSchedules(schedules)
-            registerAlarms(schedules[index])
-        }
+        updateEnabledState(id, enabled = true)
     }
 
+    /** Disables the schedule with [id] and cancels its alarms. */
     fun disableSchedule(id: String) {
-        val schedules = loadSchedules().toMutableList()
-        val index = schedules.indexOfFirst { it.id == id }
-
-        if (index >= 0) {
-            schedules[index] = schedules[index].copy(enabled = false)
-            saveSchedules(schedules)
-            cancelAlarms(id)
-        }
+        updateEnabledState(id, enabled = false)
     }
 
+    /** Re-registers alarms for all enabled schedules. Called on device boot. */
     fun rescheduleAll() {
-        val schedules = loadSchedules()
-        for (schedule in schedules) {
-            if (schedule.enabled) {
-                registerAlarms(schedule)
-            }
+        for (schedule in loadSchedules()) {
+            if (schedule.enabled) registerAlarms(schedule)
         }
     }
+
+    // ------------------------------------------------------------------
+    // Alarm management
+    // ------------------------------------------------------------------
 
     private fun registerAlarms(schedule: ScheduleData) {
         for (weekday in schedule.weekdays) {
-            val startTime = calculateNextAlarmTime(weekday, schedule.startHour, schedule.startMinute)
-            val endTime = calculateNextAlarmTime(weekday, schedule.endHour, schedule.endMinute)
+            val startMillis = nextAlarmTimeMillis(weekday, schedule.startHour, schedule.startMinute)
+            val endMillis = nextAlarmTimeMillis(weekday, schedule.endHour, schedule.endMinute)
 
-            val startIntent = createAlarmIntent(
-                ACTION_SCHEDULE_START,
-                schedule.id,
-                schedule.appIdentifiers,
-                requestCode = generateRequestCode(schedule.id, weekday, isStart = true)
+            scheduleExactAlarm(
+                action = ACTION_SCHEDULE_START,
+                scheduleId = schedule.id,
+                appIdentifiers = schedule.appIdentifiers,
+                requestCode = requestCode(schedule.id, weekday, isStart = true),
+                triggerAtMillis = startMillis,
             )
-
-            val endIntent = createAlarmIntent(
-                ACTION_SCHEDULE_END,
-                schedule.id,
-                schedule.appIdentifiers,
-                requestCode = generateRequestCode(schedule.id, weekday, isStart = false)
-            )
-
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                startTime,
-                startIntent
-            )
-
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                endTime,
-                endIntent
+            scheduleExactAlarm(
+                action = ACTION_SCHEDULE_END,
+                scheduleId = schedule.id,
+                appIdentifiers = schedule.appIdentifiers,
+                requestCode = requestCode(schedule.id, weekday, isStart = false),
+                triggerAtMillis = endMillis,
             )
         }
     }
 
     private fun cancelAlarms(scheduleId: String) {
         for (weekday in 1..MAX_WEEKDAYS) {
-            val startRequestCode = generateRequestCode(scheduleId, weekday, isStart = true)
-            val endRequestCode = generateRequestCode(scheduleId, weekday, isStart = false)
-
-            val startIntent = createAlarmIntent(
-                ACTION_SCHEDULE_START,
-                scheduleId,
-                emptyList(),
-                startRequestCode
-            )
-
-            val endIntent = createAlarmIntent(
-                ACTION_SCHEDULE_END,
-                scheduleId,
-                emptyList(),
-                endRequestCode
-            )
-
-            alarmManager.cancel(startIntent)
-            alarmManager.cancel(endIntent)
+            cancelAlarm(ACTION_SCHEDULE_START, scheduleId, emptyList(), requestCode(scheduleId, weekday, isStart = true))
+            cancelAlarm(ACTION_SCHEDULE_END, scheduleId, emptyList(), requestCode(scheduleId, weekday, isStart = false))
         }
     }
 
-    private fun createAlarmIntent(
+    private fun scheduleExactAlarm(
         action: String,
         scheduleId: String,
         appIdentifiers: List<String>,
-        requestCode: Int
+        requestCode: Int,
+        triggerAtMillis: Long,
+    ) {
+        val pending = buildPendingIntent(action, scheduleId, appIdentifiers, requestCode)
+        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pending)
+    }
+
+    private fun cancelAlarm(
+        action: String,
+        scheduleId: String,
+        appIdentifiers: List<String>,
+        requestCode: Int,
+    ) {
+        alarmManager.cancel(buildPendingIntent(action, scheduleId, appIdentifiers, requestCode))
+    }
+
+    private fun buildPendingIntent(
+        action: String,
+        scheduleId: String,
+        appIdentifiers: List<String>,
+        requestCode: Int,
     ): PendingIntent {
         val intent = Intent(context, ScheduleAlarmReceiver::class.java).apply {
             this.action = action
             putExtra(EXTRA_SCHEDULE_ID, scheduleId)
             putStringArrayListExtra(EXTRA_APP_IDENTIFIERS, ArrayList(appIdentifiers))
         }
-
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-
         return PendingIntent.getBroadcast(context, requestCode, intent, flags)
     }
 
-    private fun calculateNextAlarmTime(weekday: Int, hour: Int, minute: Int): Long {
-        val calendar = Calendar.getInstance().apply {
+    // ------------------------------------------------------------------
+    // Private helpers
+    // ------------------------------------------------------------------
+
+    private fun updateEnabledState(id: String, enabled: Boolean) {
+        val schedules = loadSchedules().toMutableList()
+        val index = schedules.indexOfFirst { it.id == id }
+        if (index < 0) return
+
+        schedules[index] = schedules[index].copy(enabled = enabled)
+        saveSchedules(schedules)
+
+        if (enabled) {
+            registerAlarms(schedules[index])
+        } else {
+            cancelAlarms(id)
+        }
+    }
+
+    /**
+     * Calculates the next future [Calendar] time for the given [weekday] (ISO 8601)
+     * and time of day. If the time has already passed today (or is now), it moves
+     * to the same time in the following week.
+     */
+    private fun nextAlarmTimeMillis(weekday: Int, hour: Int, minute: Int): Long {
+        val cal = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
 
-            val currentDayOfWeek = get(Calendar.DAY_OF_WEEK)
-            var daysUntilTarget = weekday - currentDayOfWeek
+            // Calendar.DAY_OF_WEEK uses 1=Sunday…7=Saturday;
+            // weekday parameter uses ISO 8601 (1=Monday…7=Sunday).
+            val isoToCalendar = mapOf(1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 to 6, 6 to 7, 7 to 1)
+            val targetDow = isoToCalendar[weekday] ?: return@apply
 
-            if (daysUntilTarget < 0) {
-                daysUntilTarget += 7
-            } else if (daysUntilTarget == 0 && timeInMillis <= System.currentTimeMillis()) {
-                daysUntilTarget = 7
+            var daysAhead = targetDow - get(Calendar.DAY_OF_WEEK)
+            if (daysAhead < 0 || (daysAhead == 0 && timeInMillis <= System.currentTimeMillis())) {
+                daysAhead += 7
             }
-
-            add(Calendar.DAY_OF_MONTH, daysUntilTarget)
+            add(Calendar.DAY_OF_MONTH, daysAhead)
         }
-
-        return calendar.timeInMillis
+        return cal.timeInMillis
     }
 
-    private fun generateRequestCode(scheduleId: String, weekday: Int, isStart: Boolean): Int {
-        val baseCode = scheduleId.hashCode() and 0x7FFF
-        val weekdayOffset = weekday * 2
-        val startOffset = if (isStart) 0 else 1
-        return baseCode + weekdayOffset + startOffset
+    /**
+     * Generates a unique [PendingIntent] request code for a schedule+weekday+start/end
+     * combination. Uses the lower 15 bits of the schedule id's hash to avoid
+     * collisions with other intents.
+     */
+    private fun requestCode(scheduleId: String, weekday: Int, isStart: Boolean): Int {
+        val base = if (isStart) REQUEST_CODE_START_BASE else REQUEST_CODE_END_BASE
+        return base + (scheduleId.hashCode() and 0x7FFF) * MAX_WEEKDAYS * 2 + weekday
     }
 
     private fun loadSchedules(): List<ScheduleData> {
         val json = preferences.getString(PREFS_KEY_SCHEDULES, null) ?: return emptyList()
         val type = object : TypeToken<List<ScheduleData>>() {}.type
         return try {
-            gson.fromJson(json, type)
-        } catch (e: Exception) {
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (_: Exception) {
             emptyList()
         }
     }
 
     private fun saveSchedules(schedules: List<ScheduleData>) {
-        val json = gson.toJson(schedules)
-        preferences.putString(PREFS_KEY_SCHEDULES, json)
+        preferences.putString(PREFS_KEY_SCHEDULES, gson.toJson(schedules))
     }
 }
