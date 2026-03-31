@@ -105,6 +105,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         blockingServiceManager = BlockingServiceManager(context)
         scheduleManager = ScheduleManager(context)
         profileManager = ProfileManager(context)
+        scheduleManager.rescheduleAll()
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -220,16 +221,19 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 result.success(null)
             }
 
-            GET_BLOCKED_APPS -> result.success(blockingServiceManager.getBlockedApps().toList())
+            GET_BLOCKED_APPS -> result.success(
+                (blockingServiceManager.getBlockedApps() + scheduleManager.getActivelyBlockedApps()).toList()
+            )
 
             GET_APP_STATUS -> {
                 val identifier = call.argument<String>("identifier") ?: run {
                     result.error(ERROR_INVALID_CONFIG, "Missing 'identifier' argument.", null)
                     return
                 }
+                val blocked = blockingServiceManager.getBlockedApps() + scheduleManager.getActivelyBlockedApps()
                 val status = when {
                     preferences.isBlocking() && preferences.isBlockAll() -> "blocked"
-                    preferences.isBlocking() && preferences.getBlockedApps().contains(identifier) -> "blocked"
+                    identifier in blocked -> "blocked"
                     else -> "unblocked"
                 }
                 result.success(status)

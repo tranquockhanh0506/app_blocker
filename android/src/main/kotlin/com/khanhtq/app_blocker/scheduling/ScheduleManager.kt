@@ -151,6 +151,13 @@ class ScheduleManager(private val context: Context) {
     /** Returns all schedules as wire-format maps. */
     fun getSchedules(): List<Map<String, Any?>> = loadSchedules().map { it.toMap() }
 
+    /** Returns the union of app identifiers from all enabled schedules that are currently within their active window. */
+    fun getActivelyBlockedApps(): Set<String> =
+        loadSchedules()
+            .filter { it.enabled && isCurrentlyActive(it) }
+            .flatMap { it.appIdentifiers }
+            .toSet()
+
     /** Enables the schedule with [id] and registers its alarms. */
     fun enableSchedule(id: String) {
         updateEnabledState(id, enabled = true)
@@ -161,10 +168,12 @@ class ScheduleManager(private val context: Context) {
         updateEnabledState(id, enabled = false)
     }
 
-    /** Re-registers alarms for all enabled schedules. Called on device boot. */
+    /** Re-registers alarms for all enabled schedules and activates any that are currently active. Called on device boot and plugin attach. */
     fun rescheduleAll() {
         for (schedule in loadSchedules()) {
-            if (schedule.enabled) registerAlarms(schedule)
+            if (!schedule.enabled) continue
+            registerAlarms(schedule)
+            if (isCurrentlyActive(schedule)) blockingServiceManager.startBlocking(schedule.appIdentifiers)
         }
     }
 
@@ -270,6 +279,7 @@ class ScheduleManager(private val context: Context) {
             if (isCurrentlyActive(schedules[index])) blockingServiceManager.startBlocking(schedules[index].appIdentifiers)
         } else {
             cancelAlarms(id)
+            if (isCurrentlyActive(schedules[index])) blockingServiceManager.stopBlocking()
         }
     }
 
