@@ -3,6 +3,7 @@ package com.khanhtq.app_blocker.blocking
 import android.accessibilityservice.AccessibilityService
 import android.content.pm.ApplicationInfo
 import android.os.Build
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.khanhtq.app_blocker.event.BlockEventStreamHandler
 import com.khanhtq.app_blocker.persistence.BlockerPreferences
@@ -24,13 +25,26 @@ import com.khanhtq.app_blocker.persistence.BlockerPreferences
 class AppBlockerAccessibilityService : AccessibilityService() {
 
     companion object {
-        /** Events we care about — window transitions only. */
+        private const val TAG = "AppBlockerService"
+
+        /** Events we care about — window transitions and content changes. */
         private const val TARGET_EVENTS =
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
 
         /** System packages we never want to block. */
         private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
+
+        /**
+         * Grace period after the host app's own window fires a
+         * TYPE_WINDOW_STATE_CHANGED event. Blocked-app events that arrive within
+         * this window are treated as spurious dismiss-events (Android fires
+         * TYPE_WINDOW_STATE_CHANGED for a blocked app's window while it is being
+         * animated out of the recents overview) and suppressed.
+         *
+         * Best-effort heuristic — no guaranteed correct value exists.
+         */
+        private const val OWN_PACKAGE_GRACE_MS = 500L
     }
 
     private lateinit var overlayManager: OverlayManager
@@ -43,6 +57,16 @@ class AppBlockerAccessibilityService : AccessibilityService() {
      */
     @Volatile
     private var lastPackage: String = ""
+
+    /**
+     * Timestamp of the last TYPE_WINDOW_STATE_CHANGED event from our own package.
+     * Updated when the host app comes to the foreground or when the overlay is
+     * shown/hidden (Android fires one for any window owned by this process).
+     * Used to suppress spurious blocked-app events during recents navigation
+     * (see [OWN_PACKAGE_GRACE_MS]).
+     */
+    @Volatile
+    private var lastOwnPackageEventTime: Long = 0L
 
     // ------------------------------------------------------------------
     // Lifecycle
@@ -70,16 +94,36 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
-        if ((event.eventType and TARGET_EVENTS) == 0) return
 
         val packageName = event.packageName?.toString() ?: return
 
-        // Skip our own package, system UI, and repeated events for the same app.
-        if (packageName == this.packageName ||
-            packageName == SYSTEM_UI_PACKAGE ||
-            packageName == lastPackage
-        ) return
+        if ((event.eventType and TARGET_EVENTS) == 0) {
+            Log.v(TAG, "SKIP (type=${AccessibilityEvent.eventTypeToString(event.eventType)}) pkg=$packageName")
+            return
+        }
 
+        if (packageName == SYSTEM_UI_PACKAGE) {
+            Log.v(TAG, "SKIP (systemui) pkg=$packageName")
+            return
+        }
+
+        // Overlay windows owned by this process fire TYPE_WINDOW_STATE_CHANGED with
+        // our own package. Processing them as a foreground change would immediately
+        // hide the overlay we just showed (infinite show/hide loop). Record the
+        // timestamp instead so we can filter the spurious blocked-app event that
+        // follows during recents navigation (see checkAndBlock).
+        if (packageName == this.packageName) {
+            lastOwnPackageEventTime = System.currentTimeMillis()
+            Log.v(TAG, "SKIP (own package) pkg=$packageName")
+            return
+        }
+
+        if (packageName == lastPackage) {
+            Log.v(TAG, "SKIP (duplicate) pkg=$packageName")
+            return
+        }
+
+        Log.d(TAG, "EVENT pkg=$packageName lastPkg=$lastPackage overlayShowing=${overlayManager.isShowing}")
         lastPackage = packageName
         checkAndBlock(packageName)
     }
@@ -90,18 +134,37 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
     private fun checkAndBlock(packageName: String) {
         if (!preferences.isBlocking()) {
+            Log.d(TAG, "checkAndBlock: blocking inactive pkg=$packageName")
             overlayManager.hideOverlay()
             return
         }
 
+        val blockAll = preferences.isBlockAll()
+        val blockedApps = preferences.getBlockedApps()
         val shouldBlock = when {
-            preferences.isBlockAll() -> isUserApp(packageName)
-            else -> preferences.getBlockedApps().contains(packageName)
+            blockAll -> isUserApp(packageName)
+            else -> blockedApps.contains(packageName)
         }
 
+        Log.d(TAG, "checkAndBlock: pkg=$packageName blockAll=$blockAll blockedApps=$blockedApps shouldBlock=$shouldBlock")
+
         if (shouldBlock) {
+            // When navigating to the host app via recents while the overlay is visible,
+            // Android fires our own-package event (filtered above, so lastPackage is not
+            // updated) then immediately a blocked-app event as that window animates out.
+            // Suppress it if the overlay is already hidden and a recent own-package event
+            // was seen — it's a spurious recents-dismiss, not a real foreground change.
+            if (!overlayManager.isShowing) {
+                val elapsed = System.currentTimeMillis() - lastOwnPackageEventTime
+                if (elapsed < OWN_PACKAGE_GRACE_MS) {
+                    Log.d(TAG, "checkAndBlock: SKIP spurious dismiss pkg=$packageName (${elapsed}ms after own-package event)")
+                    return
+                }
+            }
+
             overlayManager.updateConfig(loadOverlayConfig())
             overlayManager.showOverlay()
+            Log.d(TAG, "checkAndBlock: SHOW pkg=$packageName")
             BlockEventStreamHandler.sendEvent(
                 mapOf(
                     "type" to "attemptedAccess",
@@ -111,6 +174,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             )
         } else {
             overlayManager.hideOverlay()
+            Log.d(TAG, "checkAndBlock: HIDE pkg=$packageName")
         }
     }
 
