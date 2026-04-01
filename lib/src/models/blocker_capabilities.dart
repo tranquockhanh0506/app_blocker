@@ -24,6 +24,8 @@ class BlockerCapabilities {
   final bool canUseSystemShield;
 
   /// Whether scheduling is supported.
+  ///
+  /// `true` on Android, `false` on iOS.
   final bool canSchedule;
 
   /// Whether the platform can list installed apps.

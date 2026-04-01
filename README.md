@@ -35,7 +35,8 @@ A Flutter plugin to block apps on Android and iOS.
 | Get installed apps   | ✅      | -   |
 | Custom overlay       | ✅      | -   |
 | Screen Time Shield   | -       | ✅  |
-| Schedules            | ✅      | ✅  |
+| Schedules            | ✅      | -   |
+| Profiles             | ✅      | ✅  |
 | Block events stream  | ✅      | ✅  |
 | Boot persistence     | ✅      | -   |
 
@@ -142,7 +143,7 @@ await blocker.setOverlayConfig(
 // iOS uses system Screen Time Shield automatically
 ```
 
-### Schedules
+### Schedules (Android only)
 
 ```dart
 // Add a schedule
@@ -159,6 +160,26 @@ await blocker.enableSchedule('work-hours');
 await blocker.disableSchedule('work-hours');
 await blocker.removeSchedule('work-hours');
 final schedules = await blocker.getSchedules();
+```
+
+> **Note:** Scheduling is not supported on iOS (`canSchedule` returns `false`). iOS lacks the background execution mechanism needed to enforce time-based blocking reliably without the DeviceActivity framework (not yet integrated).
+
+### Profiles
+
+```dart
+// Create a profile grouping apps to block together
+await blocker.createProfile(BlockProfile(
+  id: 'social-media',
+  name: 'Social Media',
+  appIdentifiers: ['com.instagram.android', 'com.twitter.android'],
+));
+
+// Activate (blocks the profile's apps); deactivates any previously active profile
+await blocker.activateProfile('social-media');
+await blocker.deactivateProfile('social-media');
+
+final profiles = await blocker.getProfiles();
+final active = await blocker.getActiveProfile(); // null if none active
 ```
 
 ### Block Events
