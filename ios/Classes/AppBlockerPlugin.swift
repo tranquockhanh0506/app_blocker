@@ -97,7 +97,7 @@ public class AppBlockerPlugin: NSObject, FlutterPlugin {
             "canBlockApps": true,
             "canShowOverlay": false,
             "canUseSystemShield": true,
-            "canSchedule": true,
+            "canSchedule": false,
             "canGetInstalledApps": false,
             "canShowActivityPicker": {
                 if #available(iOS 16.0, *) { return true }
@@ -245,73 +245,41 @@ public class AppBlockerPlugin: NSObject, FlutterPlugin {
         }
     }
 
-    // MARK: - Scheduling
+    // MARK: - Scheduling (unsupported on iOS)
+    // Schedule enforcement requires time-based background wakeups that are not
+    // available without the DeviceActivity framework. All schedule methods return
+    // PLATFORM_UNSUPPORTED. Check canSchedule via getCapabilities() before use.
+
+    private func schedulingUnsupportedError() -> FlutterError {
+        FlutterError(
+            code: "PLATFORM_UNSUPPORTED",
+            message: "Schedule-based blocking is not supported on iOS.",
+            details: nil
+        )
+    }
 
     private func handleAddSchedule(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        guard let manager = scheduleManager as? ScheduleManager else {
-            return result(unavailableError("Schedule manager"))
-        }
-        guard let data = call.arguments as? [String: Any] else {
-            return result(invalidConfigError("Invalid schedule data."))
-        }
-        manager.addSchedule(data: data)
-        result(nil)
+        result(schedulingUnsupportedError())
     }
 
     private func handleUpdateSchedule(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        guard let manager = scheduleManager as? ScheduleManager else {
-            return result(unavailableError("Schedule manager"))
-        }
-        guard let data = call.arguments as? [String: Any] else {
-            return result(invalidConfigError("Invalid schedule data."))
-        }
-        manager.updateSchedule(data: data)
-        result(nil)
+        result(schedulingUnsupportedError())
     }
 
     private func handleRemoveSchedule(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        guard let manager = scheduleManager as? ScheduleManager else {
-            return result(unavailableError("Schedule manager"))
-        }
-        guard let args = call.arguments as? [String: Any],
-              let id = args["id"] as? String else {
-            return result(invalidConfigError("Missing 'id' argument."))
-        }
-        manager.removeSchedule(id: id)
-        result(nil)
+        result(schedulingUnsupportedError())
     }
 
     private func handleGetSchedules(result: @escaping FlutterResult) {
-        guard let manager = scheduleManager as? ScheduleManager else {
-            return result(unavailableError("Schedule manager"))
-        }
-        result(manager.getSchedules())
+        result(schedulingUnsupportedError())
     }
 
     private func handleEnableSchedule(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        guard let manager = scheduleManager as? ScheduleManager else {
-            return result(unavailableError("Schedule manager"))
-        }
-        guard let args = call.arguments as? [String: Any],
-              let id = args["id"] as? String else {
-            return result(invalidConfigError("Missing 'id' argument."))
-        }
-        manager.enableSchedule(id: id)
-        eventStreamHandler?.sendEvent(type: "scheduleActivated", packageName: nil, scheduleId: id)
-        result(nil)
+        result(schedulingUnsupportedError())
     }
 
     private func handleDisableSchedule(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        guard let manager = scheduleManager as? ScheduleManager else {
-            return result(unavailableError("Schedule manager"))
-        }
-        guard let args = call.arguments as? [String: Any],
-              let id = args["id"] as? String else {
-            return result(invalidConfigError("Missing 'id' argument."))
-        }
-        manager.disableSchedule(id: id)
-        eventStreamHandler?.sendEvent(type: "scheduleDeactivated", packageName: nil, scheduleId: id)
-        result(nil)
+        result(schedulingUnsupportedError())
     }
 
     // MARK: - Profiles
