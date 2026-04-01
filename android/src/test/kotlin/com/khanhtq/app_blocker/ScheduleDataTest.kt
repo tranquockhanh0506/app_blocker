@@ -3,6 +3,7 @@ package com.khanhtq.app_blocker
 import com.khanhtq.app_blocker.scheduling.ScheduleData
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -103,5 +104,30 @@ internal class ScheduleDataTest {
         val b = ScheduleData.fromMap(sampleMap())
         assertEquals(a, b)
         assertEquals(a.hashCode(), b.hashCode())
+    }
+
+    @Test
+    fun `fromMap rejects weekday less than 1`() {
+        val map = sampleMap(weekdays = listOf(0, 1, 2))
+        val exception = assertFailsWith<IllegalArgumentException> {
+            ScheduleData.fromMap(map)
+        }
+        assertTrue(exception.message!!.contains("ISO 8601"))
+    }
+
+    @Test
+    fun `fromMap rejects weekday greater than 7`() {
+        val map = sampleMap(weekdays = listOf(1, 8))
+        val exception = assertFailsWith<IllegalArgumentException> {
+            ScheduleData.fromMap(map)
+        }
+        assertTrue(exception.message!!.contains("ISO 8601"))
+    }
+
+    @Test
+    fun `fromMap accepts valid weekday range 1 to 7`() {
+        val map = sampleMap(weekdays = listOf(1, 2, 3, 4, 5, 6, 7))
+        val schedule = ScheduleData.fromMap(map)
+        assertEquals(listOf(1, 2, 3, 4, 5, 6, 7), schedule.weekdays)
     }
 }

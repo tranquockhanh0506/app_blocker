@@ -50,6 +50,8 @@ data class ScheduleData(
          * List elements come across as heterogeneous [List<*>]; we use
          * [filterIsInstance] / [map] to recover type safety without
          * unchecked casts.
+         *
+         * @throws IllegalArgumentException if any weekday is outside the ISO 8601 range (1–7).
          */
         fun fromMap(data: Map<String, Any?>): ScheduleData {
             val appIdentifiers = (data["appIdentifiers"] as? List<*>)
@@ -59,6 +61,15 @@ data class ScheduleData(
             val weekdays = (data["weekdays"] as? List<*>)
                 ?.mapNotNull { (it as? Number)?.toInt() }
                 ?: emptyList()
+
+            // Validate weekdays are in ISO 8601 range (1 = Monday ... 7 = Sunday)
+            for (day in weekdays) {
+                if (day !in 1..7) {
+                    throw IllegalArgumentException(
+                        "Weekday must be an ISO 8601 value between 1 (Monday) and 7 (Sunday), got: $day"
+                    )
+                }
+            }
 
             return ScheduleData(
                 id = data["id"] as String,
@@ -141,10 +152,15 @@ class ScheduleManager(private val context: Context) {
 
     /** Removes the schedule with [id] and cancels its alarms. */
     fun removeSchedule(id: String) {
-        // Disable first to ensure apps are unblocked if schedule is currently active
-        disableSchedule(id)
-
         val schedules = loadSchedules().toMutableList()
+        val schedule = schedules.find { it.id == id } ?: return
+
+        // Cancel alarms and unblock apps if schedule is currently active
+        cancelAlarms(id)
+        if (schedule.enabled && isCurrentlyActive(schedule)) {
+            blockingServiceManager.stopBlocking()
+        }
+
         schedules.removeAll { it.id == id }
         saveSchedules(schedules)
     }
