@@ -14,6 +14,12 @@ enum BlockEventType {
 
   /// A schedule was deactivated.
   scheduleDeactivated,
+
+  /// A profile was activated.
+  profileActivated,
+
+  /// A profile was deactivated.
+  profileDeactivated,
 }
 
 /// Represents an event that occurred during app blocking.
@@ -24,6 +30,7 @@ class BlockEvent {
     required this.timestamp,
     this.packageName,
     this.scheduleId,
+    this.profileId,
   });
 
   /// The type of event.
@@ -38,6 +45,9 @@ class BlockEvent {
   /// The schedule ID that triggered this event, if applicable.
   final String? scheduleId;
 
+  /// The profile ID that triggered this event, if applicable.
+  final String? profileId;
+
   /// Creates a [BlockEvent] from a map.
   factory BlockEvent.fromMap(Map<String, dynamic> map) {
     return BlockEvent(
@@ -45,10 +55,11 @@ class BlockEvent {
       timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] as int),
       packageName: map['packageName'] as String?,
       scheduleId: map['scheduleId'] as String?,
+      profileId: map['profileId'] as String?,
     );
   }
 
   @override
   String toString() =>
-      'BlockEvent(type: $type, packageName: $packageName, timestamp: $timestamp)';
+      'BlockEvent(type: $type, packageName: $packageName, profileId: $profileId, timestamp: $timestamp)';
 }

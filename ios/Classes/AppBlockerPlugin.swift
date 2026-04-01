@@ -333,7 +333,14 @@ public class AppBlockerPlugin: NSObject, FlutterPlugin {
               let id = args["id"] as? String else {
             return result(invalidConfigError("Missing 'id' argument."))
         }
+        // Capture app identifiers before activating so we can emit per-app blocked events.
+        let appIdentifiers = (manager.getProfiles()
+            .first { ($0["id"] as? String) == id }?["appIdentifiers"] as? [String]) ?? []
         if manager.activateProfile(id: id) {
+            for identifier in appIdentifiers {
+                eventStreamHandler?.sendEvent(type: "blocked", packageName: identifier, scheduleId: nil, profileId: id)
+            }
+            eventStreamHandler?.sendEvent(type: "profileActivated", packageName: nil, scheduleId: nil, profileId: id)
             result(nil)
         } else {
             result(FlutterError(
@@ -352,7 +359,16 @@ public class AppBlockerPlugin: NSObject, FlutterPlugin {
               let id = args["id"] as? String else {
             return result(invalidConfigError("Missing 'id' argument."))
         }
+        // Capture app identifiers before deactivating so we can emit per-app unblocked events.
+        let appIdentifiers = (manager.getProfiles()
+            .first { ($0["id"] as? String) == id }?["appIdentifiers"] as? [String]) ?? []
+        
         manager.deactivateProfile(id: id)
+        
+        for identifier in appIdentifiers {
+            eventStreamHandler?.sendEvent(type: "unblocked", packageName: identifier, scheduleId: nil, profileId: id)
+        }
+        eventStreamHandler?.sendEvent(type: "profileDeactivated", packageName: nil, scheduleId: nil, profileId: id)
         result(nil)
     }
 

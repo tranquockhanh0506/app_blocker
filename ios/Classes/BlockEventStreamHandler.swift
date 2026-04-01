@@ -33,16 +33,19 @@ class BlockEventStreamHandler: NSObject, FlutterStreamHandler {
     /// - Parameters:
     ///   - type: Event type matching Dart's `BlockEventType` values:
     ///           `"blocked"`, `"unblocked"`, `"attemptedAccess"`,
-    ///           `"scheduleActivated"`, `"scheduleDeactivated"`.
+    ///           `"scheduleActivated"`, `"scheduleDeactivated"`,
+    ///           `"profileActivated"`, `"profileDeactivated"`.
     ///   - packageName: Identifier of the affected app, or `nil`.
     ///   - scheduleId: ID of the schedule that triggered the event, or `nil`.
-    func sendEvent(type: String, packageName: String?, scheduleId: String?) {
+    ///   - profileId: ID of the profile that triggered the event, or `nil`.
+    func sendEvent(type: String, packageName: String?, scheduleId: String?, profileId: String? = nil) {
         var event: [String: Any] = [
             "type": type,
             "timestamp": Int(Date().timeIntervalSince1970 * 1000),
         ]
         if let packageName = packageName { event["packageName"] = packageName }
         if let scheduleId = scheduleId { event["scheduleId"] = scheduleId }
+        if let profileId = profileId { event["profileId"] = profileId }
 
         DispatchQueue.main.async { [weak self] in
             self?.eventSink?(event)

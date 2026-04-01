@@ -1216,6 +1216,8 @@ class _EventIcon extends StatelessWidget {
       BlockEventType.attemptedAccess => (Icons.warning_amber, Colors.orange),
       BlockEventType.scheduleActivated => (Icons.schedule, Colors.blue),
       BlockEventType.scheduleDeactivated => (Icons.schedule_send, Colors.grey),
+      BlockEventType.profileActivated => (Icons.person, Colors.purple),
+      BlockEventType.profileDeactivated => (Icons.person_off, Colors.grey),
     };
     return CircleAvatar(
       backgroundColor: color.withValues(alpha: 0.15),

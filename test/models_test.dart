@@ -115,6 +115,7 @@ void main() {
         'timestamp': 1711100000000,
         'packageName': 'com.example.app',
         'scheduleId': 'sched-1',
+        'profileId': 'prof-1',
       };
 
       final event = BlockEvent.fromMap(map);
@@ -126,6 +127,7 @@ void main() {
       );
       expect(event.packageName, 'com.example.app');
       expect(event.scheduleId, 'sched-1');
+      expect(event.profileId, 'prof-1');
     });
 
     test('fromMap with null optional fields', () {
@@ -626,7 +628,7 @@ void main() {
 
   group('BlockEventType enum', () {
     test('has expected values', () {
-      expect(BlockEventType.values, hasLength(5));
+      expect(BlockEventType.values, hasLength(7));
       expect(BlockEventType.values, contains(BlockEventType.blocked));
       expect(BlockEventType.values, contains(BlockEventType.unblocked));
       expect(BlockEventType.values, contains(BlockEventType.attemptedAccess));
@@ -634,6 +636,11 @@ void main() {
       expect(
         BlockEventType.values,
         contains(BlockEventType.scheduleDeactivated),
+      );
+      expect(BlockEventType.values, contains(BlockEventType.profileActivated));
+      expect(
+        BlockEventType.values,
+        contains(BlockEventType.profileDeactivated),
       );
     });
 

@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.khanhtq.app_blocker.blocking.BlockingServiceManager
+import com.khanhtq.app_blocker.event.BlockEventStreamHandler
 import com.khanhtq.app_blocker.persistence.BlockerPreferences
 
 /**
@@ -145,6 +146,14 @@ class ProfileManager(private val context: Context) {
         for (schedule in target.schedules) {
             scheduleManager.addSchedule(schedule.copy(enabled = true).toMap())
         }
+
+        BlockEventStreamHandler.sendEvent(
+            mapOf(
+                "type" to "profileActivated",
+                "profileId" to id,
+                "timestamp" to System.currentTimeMillis(),
+            )
+        )
     }
 
     /** Deactivates the profile with [id]. No-op if it is not active. */
@@ -171,10 +180,29 @@ class ProfileManager(private val context: Context) {
      * Does **not** write to storage — callers handle persistence.
      */
     private fun deactivateInternal(profile: ProfileData) {
+        // Emit individual unblocked events for each app before stopping blocking
+        val timestamp = System.currentTimeMillis()
+        for (packageName in profile.appIdentifiers) {
+            BlockEventStreamHandler.sendEvent(
+                mapOf(
+                    "type" to "unblocked",
+                    "packageName" to packageName,
+                    "timestamp" to timestamp,
+                )
+            )
+        }
+        
         blockingServiceManager.stopBlocking()
         for (schedule in profile.schedules) {
             scheduleManager.removeSchedule(schedule.id)
         }
+        BlockEventStreamHandler.sendEvent(
+            mapOf(
+                "type" to "profileDeactivated",
+                "profileId" to profile.id,
+                "timestamp" to timestamp,
+            )
+        )
     }
 
     private fun loadProfiles(): List<ProfileData> {
