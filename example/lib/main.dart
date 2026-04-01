@@ -161,8 +161,10 @@ class _BlockingTabState extends State<_BlockingTab>
     if (Platform.isIOS) {
       setState(() => _loadingApps = true);
       try {
-        await _blocker.getApps();
-        _snack('Apps selected via Screen Time');
+        final picked = await _blocker.getApps();
+        setState(() {
+          _selectedApps = picked.map((a) => a.packageName).toSet();
+        });
       } catch (e) {
         _err('$e');
       } finally {

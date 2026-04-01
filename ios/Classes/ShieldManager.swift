@@ -1,6 +1,7 @@
 import Foundation
 import ManagedSettings
 import FamilyControls
+import CryptoKit
 
 /// Manages the Screen Time shield that blocks apps on iOS 15+.
 ///
@@ -189,11 +190,18 @@ class ShieldManager: NSObject {
 
     // MARK: - Selection storage (called from ActivityPickerCoordinator)
 
-    /// Stores the tokens from [selection] under auto-generated identifier keys.
-    func storeTokensFromSelection(selection: FamilyActivitySelection) {
-        queue.async(flags: .barrier) {
-            self.storeTokensFromSelectionUnsafe(selection: selection)
+    /// Stores the tokens from [selection] under stable hash-derived keys and
+    /// returns those keys so callers can use them as opaque identifiers.
+    ///
+    /// Using a hash of the raw token data instead of sequential indices ensures
+    /// the same app always maps to the same key across picker sessions, so
+    /// previously-blocked apps are never accidentally orphaned.
+    @discardableResult
+    func storeTokensFromSelection(selection: FamilyActivitySelection) -> [(key: String, isApp: Bool)] {
+        return queue.sync(flags: .barrier) {
+            let result = self.storeTokensFromSelectionUnsafe(selection: selection)
             self.saveTokenMappingsUnsafe()
+            return result
         }
     }
 
@@ -234,20 +242,37 @@ class ShieldManager: NSObject {
         }
     }
 
-    /// Stores tokens from a selection under sequential identifier keys.
+    /// Derives a stable, short identifier from the raw token data.
+    /// Using a hash ensures the same app always maps to the same key across
+    /// picker sessions, so previously-blocked tokens are never orphaned.
     /// **Caller must hold the queue write lock.**
-    private func storeTokensFromSelectionUnsafe(selection: FamilyActivitySelection) {
+    private func stableKey(for data: Data) -> String {
+        let hash = SHA256.hash(data: data)
+        return hash.prefix(8).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Stores tokens from a selection under stable hash-derived keys and returns
+    /// those keys paired with whether each entry is an app (true) or category (false).
+    /// **Caller must hold the queue write lock.**
+    @discardableResult
+    private func storeTokensFromSelectionUnsafe(selection: FamilyActivitySelection) -> [(key: String, isApp: Bool)] {
         let encoder = JSONEncoder()
-        for (index, token) in selection.applicationTokens.enumerated() {
+        var result: [(key: String, isApp: Bool)] = []
+        for token in selection.applicationTokens {
             if let data = try? encoder.encode(token) {
-                _identifierToAppTokenData["app_token_\(index)"] = data
+                let key = stableKey(for: data)
+                _identifierToAppTokenData[key] = data
+                result.append((key: key, isApp: true))
             }
         }
-        for (index, token) in selection.categoryTokens.enumerated() {
+        for token in selection.categoryTokens {
             if let data = try? encoder.encode(token) {
-                _identifierToCategoryTokenData["cat_token_\(index)"] = data
+                let key = stableKey(for: data)
+                _identifierToCategoryTokenData[key] = data
+                result.append((key: key, isApp: false))
             }
         }
+        return result
     }
 
     /// Serialises all state to `UserDefaults`.

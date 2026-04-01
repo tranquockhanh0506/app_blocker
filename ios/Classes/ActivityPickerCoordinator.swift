@@ -39,34 +39,20 @@ class ActivityPickerCoordinator: NSObject {
     }
 
     private func onPickerDone(selection: FamilyActivitySelection, presenter: UIViewController) {
-        // Apply the selection to the shield
+        // Store tokens and get back their stable keys.
+        // Do NOT apply the shield here — the caller decides whether to block or unblock.
+        var apps: [[String: Any]] = []
         if #available(iOS 15.0, *) {
             if let shieldManager = AppBlockerPlugin.shared?.shieldManager as? ShieldManager {
-                shieldManager.blockWithSelection(selection: selection)
+                let stored = shieldManager.storeTokensFromSelection(selection: selection)
+                for (key, isApp) in stored {
+                    apps.append([
+                        "packageName": key,
+                        "appName": isApp ? "Selected App" : "Selected Category",
+                        "isSystemApp": false,
+                    ])
+                }
             }
-        }
-
-        // Build result data with selection info
-        var apps: [[String: Any]] = []
-
-        var appIndex = 0
-        for _ in selection.applicationTokens {
-            apps.append([
-                "packageName": "app_token_\(appIndex)",
-                "appName": "Selected App \(appIndex)",
-                "isSystemApp": false,
-            ])
-            appIndex += 1
-        }
-
-        var catIndex = 0
-        for _ in selection.categoryTokens {
-            apps.append([
-                "packageName": "cat_token_\(catIndex)",
-                "appName": "Selected Category \(catIndex)",
-                "isSystemApp": false,
-            ])
-            catIndex += 1
         }
 
         presenter.dismiss(animated: true) { [weak self] in
