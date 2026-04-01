@@ -651,11 +651,17 @@ class _SchedulesTab extends StatefulWidget {
 class _SchedulesTabState extends State<_SchedulesTab> {
   final _blocker = AppBlocker.instance;
   List<BlockSchedule> _schedules = [];
+  bool _supported = true;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _blocker.getCapabilities().then((caps) {
+      if (mounted) {
+        _supported = caps.canSchedule;
+        if (_supported) _load();
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -727,11 +733,18 @@ class _SchedulesTabState extends State<_SchedulesTab> {
       appBar: AppBar(
         title: const Text('Schedules'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+          if (_supported)
+            IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),
       body: _schedules.isEmpty
-          ? const Center(child: Text('No schedules yet. Tap + to add one.'))
+          ? Center(
+              child: Text(
+                _supported
+                    ? 'No schedules yet. Tap + to add one.'
+                    : 'Schedule-based blocking is not supported on this platform.',
+              ),
+            )
           : ListView.builder(
               padding: const EdgeInsets.all(8),
               itemCount: _schedules.length,
@@ -760,10 +773,9 @@ class _SchedulesTabState extends State<_SchedulesTab> {
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _add,
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: _supported
+          ? FloatingActionButton(onPressed: _add, child: const Icon(Icons.add))
+          : null,
     );
   }
 }
