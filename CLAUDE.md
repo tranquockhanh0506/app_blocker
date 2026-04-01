@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`app_blocker` is a Flutter plugin (v1.0.6) that provides cross-platform app blocking on Android and iOS. It is published as a pub.dev package.
+`app_blocker` is a Flutter plugin (v2.0.0) that provides cross-platform app blocking on Android and iOS. It is published as a pub.dev package.
 
 - **Android**: Min SDK 24 (Android 7.0) — uses AccessibilityService + overlay windows
 - **iOS**: Min iOS 16.0 — uses Screen Time API (FamilyControls + ManagedSettings)

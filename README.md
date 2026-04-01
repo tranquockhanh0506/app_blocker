@@ -68,7 +68,7 @@ A Flutter plugin to block apps on Android and iOS.
 
 ```yaml
 dependencies:
-  app_blocker: ^1.0.6
+  app_blocker: ^2.0.0
 ```
 
 ## Setup
@@ -77,21 +77,11 @@ dependencies:
 
 **Minimum SDK:** 24 (Android 7.0)
 
-Add to `android/app/src/main/AndroidManifest.xml`:
+No additional setup required. The plugin automatically adds these permissions:
 
-```xml
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
-        tools:ignore="QueryAllPackagesPermission" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-</manifest>
-```
+- `SYSTEM_ALERT_WINDOW` — Block overlay (requires `requestPermission()`)- `SCHEDULE_EXACT_ALARM` — Time-based blocking (requires `requestPermission()` on Android 13+)
+- `QUERY_ALL_PACKAGES` — List installed apps
+- `RECEIVE_BOOT_COMPLETED` — Restore schedules after reboot
 
 ### iOS
 
@@ -121,6 +111,7 @@ final status = await blocker.checkPermission();
 // Returns: BlockerPermissionStatus.granted / .denied / .restricted
 
 // Request permission (opens system settings on Android, shows dialog on iOS)
+// must be called multiple times on Android until all permissions are granted
 await blocker.requestPermission();
 ```
 

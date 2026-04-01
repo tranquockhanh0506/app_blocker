@@ -8,14 +8,6 @@
     -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!--
-      PACKAGE_USAGE_STATS — query per-app foreground time for usage-based blocking.
-      Protected permission; user must grant it in Settings → Usage access.
-    -->
-    <uses-permission
-        android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
-
     <!-- Enumerate installed apps to populate the app list. -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
