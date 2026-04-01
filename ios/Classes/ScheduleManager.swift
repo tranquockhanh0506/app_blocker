@@ -5,7 +5,6 @@ import Foundation
 /// Schedules are stored as a JSON-encoded array of `[String: Any]` maps, with
 /// the same structure expected by the Flutter channel on both platforms.
 /// All methods are synchronous and safe to call from the main thread.
-@available(iOS 15.0, *)
 class ScheduleManager: NSObject {
 
     private let userDefaultsKey = "app_blocker_schedules"

@@ -1,5 +1,5 @@
 PODS:
-  - app_blocker (1.0.0):
+  - app_blocker (1.0.6):
     - Flutter
   - Flutter (1.0.0)
   - integration_test (0.0.1):
@@ -19,7 +19,7 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/integration_test/ios"
 
 SPEC CHECKSUMS:
-  app_blocker: 7701f5cdad8c6df6c0dc44f2450d349aff40e583
+  app_blocker: 6922a5e6117a015a37e0bbc996cdc3b12c303a4d
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
 

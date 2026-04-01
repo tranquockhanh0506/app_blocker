@@ -3,7 +3,7 @@ import ManagedSettings
 import FamilyControls
 import CryptoKit
 
-/// Manages the Screen Time shield that blocks apps on iOS 15+.
+/// Manages the Screen Time shield that blocks apps.
 ///
 /// Apple's `ApplicationToken` and `ActivityCategoryToken` are opaque values
 /// that cannot be constructed from a string identifier — they are obtained
@@ -19,7 +19,6 @@ import CryptoKit
 /// barrier writes to prevent race conditions on background threads.
 ///
 /// - Note: All public methods are safe to call from any thread.
-@available(iOS 15.0, *)
 class ShieldManager: NSObject {
 
     // MARK: - Private state

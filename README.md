@@ -5,7 +5,7 @@
 
 A Flutter plugin to block apps on Android and iOS.
 
-- **Android:** Foreground service + overlay window to detect and block apps
+- **Android:** AccessibilityService + overlay window to detect and block apps
 - **iOS:** Screen Time API
   - **FamilyControls** — request user authorization to manage Screen Time
   - **ManagedSettings** — apply shield restrictions on selected apps (required for blocking specific apps, not needed for `blockAll()`)
@@ -88,8 +88,6 @@ Add to `android/app/src/main/AndroidManifest.xml`:
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 </manifest>

@@ -8,7 +8,6 @@ import Foundation
 /// active profile first. The active profile ID is stored separately from the
 /// profile list so that `getProfiles` can annotate each profile with its
 /// current active state without mutating the stored list.
-@available(iOS 15.0, *)
 class ProfileManager: NSObject {
 
     private let userDefaultsKey = "app_blocker_profiles"

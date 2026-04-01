@@ -4,7 +4,6 @@ import SwiftUI
 import FamilyControls
 import Flutter
 
-@available(iOS 16.0, *)
 class ActivityPickerCoordinator: NSObject {
     private var pendingResult: FlutterResult?
     private var hostingController: UIHostingController<ActivityPickerView>?
@@ -42,16 +41,14 @@ class ActivityPickerCoordinator: NSObject {
         // Store tokens and get back their stable keys.
         // Do NOT apply the shield here — the caller decides whether to block or unblock.
         var apps: [[String: Any]] = []
-        if #available(iOS 15.0, *) {
-            if let shieldManager = AppBlockerPlugin.shared?.shieldManager as? ShieldManager {
-                let stored = shieldManager.storeTokensFromSelection(selection: selection)
-                for (key, isApp) in stored {
-                    apps.append([
-                        "packageName": key,
-                        "appName": isApp ? "Selected App" : "Selected Category",
-                        "isSystemApp": false,
-                    ])
-                }
+        if let shieldManager = AppBlockerPlugin.shared?.shieldManager as? ShieldManager {
+            let stored = shieldManager.storeTokensFromSelection(selection: selection)
+            for (key, isApp) in stored {
+                apps.append([
+                    "packageName": key,
+                    "appName": isApp ? "Selected App" : "Selected Category",
+                    "isSystemApp": false,
+                ])
             }
         }
 

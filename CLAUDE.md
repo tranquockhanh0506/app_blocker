@@ -59,14 +59,19 @@ AppBlocker (Dart singleton)
 | File/Directory | Role |
 |----------------|------|
 | `AppBlockerPlugin.kt` | Entry point; routes method calls to managers |
+| `AppResolver.kt` | Resolves installed apps; converts metadata for platform channel |
+| `PermissionManager.kt` | `PACKAGE_USAGE_STATS`, `SYSTEM_ALERT_WINDOW`, `QUERY_ALL_PACKAGES` |
 | `blocking/AppBlockerAccessibilityService.kt` | Detects foreground app changes (battery-efficient; replaced 200 ms polling loop) |
 | `blocking/BlockingServiceManager.kt` | Core blocking state management; emits events |
+| `blocking/OverlayManager.kt` | Manages the full-screen overlay shown when an app is blocked |
+| `event/BlockEventStreamHandler.kt` | Delivers block events to Flutter via `EventChannel` |
 | `scheduling/ScheduleManager.kt` | Time-based blocking via `AlarmManager` |
+| `scheduling/ScheduleAlarmReceiver.kt` | Receives `AlarmManager` broadcasts to activate/deactivate schedules |
+| `scheduling/ProfileManager.kt` | Groups apps + schedules into profiles |
 | `persistence/BlockerPreferences.kt` | `SharedPreferences` wrapper |
 | `receiver/BootReceiver.kt` | Restores blocking state after device reboot |
-| `PermissionManager.kt` | `PACKAGE_USAGE_STATS`, `SYSTEM_ALERT_WINDOW`, `QUERY_ALL_PACKAGES` |
 
-Required permissions in `AndroidManifest.xml`: `PACKAGE_USAGE_STATS`, `SYSTEM_ALERT_WINDOW`, `QUERY_ALL_PACKAGES`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`, `RECEIVE_BOOT_COMPLETED`, `SCHEDULE_EXACT_ALARM`.
+Required permissions in `AndroidManifest.xml`: `PACKAGE_USAGE_STATS`, `SYSTEM_ALERT_WINDOW`, `QUERY_ALL_PACKAGES`, `RECEIVE_BOOT_COMPLETED`, `SCHEDULE_EXACT_ALARM`.
 
 ### iOS Layer (`ios/Classes/`)
 
@@ -76,6 +81,8 @@ Required permissions in `AndroidManifest.xml`: `PACKAGE_USAGE_STATS`, `SYSTEM_AL
 | `PermissionManager.swift` | `FamilyControls` authorization (iOS 16+) |
 | `ShieldManager.swift` | Applies `ManagedSettings` shield restrictions |
 | `ActivityPickerCoordinator.swift` | Presents `FamilyActivityPicker` UI for app selection |
+| `Views/ActivityPickerView.swift` | SwiftUI view wrapping `FamilyActivityPicker` |
+| `BlockEventStreamHandler.swift` | Delivers block events to Flutter via `EventChannel` |
 | `ScheduleManager.swift` | Persists schedules to `UserDefaults` |
 | `ProfileManager.swift` | Groups apps + schedules into profiles |
 

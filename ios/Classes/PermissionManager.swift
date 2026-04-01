@@ -2,12 +2,11 @@ import Foundation
 import FamilyControls
 import Flutter
 
-/// Checks and requests FamilyControls authorization on iOS 16+.
+/// Checks and requests FamilyControls authorization.
 ///
 /// FamilyControls authorization is required to use `ManagedSettings` for app
 /// shielding. The user must explicitly approve the prompt; if they decline,
 /// `requestPermission` delivers a `PERMISSION_DENIED` Flutter error.
-@available(iOS 16.0, *)
 class PermissionManager: NSObject {
 
     // MARK: - Public API
