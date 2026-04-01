@@ -411,7 +411,28 @@ class _BlockingTabState extends State<_BlockingTab>
                 )
               else
                 ..._blockedApps.map(
-                  (p) => Text(p, style: theme.textTheme.bodySmall),
+                  (p) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(p, style: theme.textTheme.bodySmall),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () async {
+                            await _blocker.unblockApps([p]);
+                            _refreshBlocked();
+                          },
+                          child: const Text('Unblock'),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
             ],
           ),

@@ -205,25 +205,31 @@ class ShieldManager: NSObject {
         }
     }
 
-    /// Returns a summary of currently blocked tokens (index-keyed identifiers).
+    /// Returns a summary of currently blocked tokens using their stable keys.
     func getSelectionInfo() -> [[String: Any]] {
         return queue.sync {
             var result: [[String: Any]] = []
             let decoder = JSONDecoder()
 
-            for (index, _) in _blockedApplicationTokens.enumerated() {
-                result.append([
-                    "packageName": "app_token_\(index)",
-                    "appName": "App \(index)",
-                    "isSystemApp": false,
-                ])
+            for (key, data) in _identifierToAppTokenData {
+                if let token = try? decoder.decode(ApplicationToken.self, from: data),
+                   _blockedApplicationTokens.contains(token) {
+                    result.append([
+                        "packageName": key,
+                        "appName": "Selected App",
+                        "isSystemApp": false,
+                    ])
+                }
             }
-            for (index, _) in _blockedCategoryTokens.enumerated() {
-                result.append([
-                    "packageName": "cat_token_\(index)",
-                    "appName": "Category \(index)",
-                    "isSystemApp": false,
-                ])
+            for (key, data) in _identifierToCategoryTokenData {
+                if let token = try? decoder.decode(ActivityCategoryToken.self, from: data),
+                   _blockedCategoryTokens.contains(token) {
+                    result.append([
+                        "packageName": key,
+                        "appName": "Selected Category",
+                        "isSystemApp": false,
+                    ])
+                }
             }
             return result
         }
@@ -242,32 +248,26 @@ class ShieldManager: NSObject {
         }
     }
 
-    /// Derives a stable, short identifier from the raw token data.
-    /// Using a hash ensures the same app always maps to the same key across
-    /// picker sessions, so previously-blocked tokens are never orphaned.
-    /// **Caller must hold the queue write lock.**
-    private func stableKey(for data: Data) -> String {
-        let hash = SHA256.hash(data: data)
-        return hash.prefix(8).map { String(format: "%02x", $0) }.joined()
-    }
-
-    /// Stores tokens from a selection under stable hash-derived keys and returns
-    /// those keys paired with whether each entry is an app (true) or category (false).
+    /// Stores tokens from a selection under stable keys derived from the
+    /// base64-encoded token data itself, and returns those keys paired with
+    /// whether each entry is an app (true) or category (false).
+    ///
+    /// Because the key IS the encoded token, the same app always maps to the
+    /// same key across picker sessions — no hashing dependency required.
     /// **Caller must hold the queue write lock.**
     @discardableResult
     private func storeTokensFromSelectionUnsafe(selection: FamilyActivitySelection) -> [(key: String, isApp: Bool)] {
-        let encoder = JSONEncoder()
         var result: [(key: String, isApp: Bool)] = []
         for token in selection.applicationTokens {
-            if let data = try? encoder.encode(token) {
-                let key = stableKey(for: data)
+            if let data = try? JSONEncoder().encode(token) {
+                let key = data.base64EncodedString()
                 _identifierToAppTokenData[key] = data
                 result.append((key: key, isApp: true))
             }
         }
         for token in selection.categoryTokens {
-            if let data = try? encoder.encode(token) {
-                let key = stableKey(for: data)
+            if let data = try? JSONEncoder().encode(token) {
+                let key = data.base64EncodedString()
                 _identifierToCategoryTokenData[key] = data
                 result.append((key: key, isApp: false))
             }
