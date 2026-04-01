@@ -141,11 +141,12 @@ class ScheduleManager(private val context: Context) {
 
     /** Removes the schedule with [id] and cancels its alarms. */
     fun removeSchedule(id: String) {
+        // Disable first to ensure apps are unblocked if schedule is currently active
+        disableSchedule(id)
+
         val schedules = loadSchedules().toMutableList()
-        if (schedules.removeAll { it.id == id }) {
-            cancelAlarms(id)
-            saveSchedules(schedules)
-        }
+        schedules.removeAll { it.id == id }
+        saveSchedules(schedules)
     }
 
     /** Returns all schedules as wire-format maps. */
