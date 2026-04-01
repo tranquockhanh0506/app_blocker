@@ -157,20 +157,18 @@ class _BlockingTabState extends State<_BlockingTab>
     }
   }
 
-  Future<void> _selectApps() async {
+  Future<Set<String>?> _showAppPicker({Set<String> initial = const {}}) async {
     if (Platform.isIOS) {
       setState(() => _loadingApps = true);
       try {
         final picked = await _blocker.getApps();
-        setState(() {
-          _selectedApps = picked.map((a) => a.packageName).toSet();
-        });
+        return picked.map((a) => a.packageName).toSet();
       } catch (e) {
         _err('$e');
+        return null;
       } finally {
-        setState(() => _loadingApps = false);
+        if (mounted) setState(() => _loadingApps = false);
       }
-      return;
     }
 
     if (_apps.isEmpty) {
@@ -180,18 +178,22 @@ class _BlockingTabState extends State<_BlockingTab>
       } catch (e) {
         _err('$e');
         setState(() => _loadingApps = false);
-        return;
+        return null;
       }
       setState(() => _loadingApps = false);
     }
 
-    if (!mounted) return;
-    final selected = await showModalBottomSheet<Set<String>>(
+    if (!mounted) return null;
+    return showModalBottomSheet<Set<String>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _AppPicker(apps: _apps, initial: _selectedApps),
+      builder: (_) => _AppPicker(apps: _apps, initial: initial),
     );
+  }
+
+  Future<void> _selectApps() async {
+    final selected = await _showAppPicker(initial: _selectedApps);
     if (selected != null) setState(() => _selectedApps = selected);
   }
 
@@ -240,11 +242,11 @@ class _BlockingTabState extends State<_BlockingTab>
   }
 
   Future<void> _checkAppStatus() async {
-    final id = await _showTextInput('App Status', 'Package name / bundle ID');
-    if (id == null || id.isEmpty) return;
+    final selected = await _showAppPicker();
+    if (selected == null || selected.isEmpty) return;
     try {
-      final status = await _blocker.getAppStatus(id);
-      _snack('"$id" is ${status.name}');
+      final status = await _blocker.getAppStatus(selected.first);
+      _snack('"${selected.first}" is ${status.name}');
     } catch (e) {
       _err('$e');
     }
@@ -257,31 +259,6 @@ class _BlockingTabState extends State<_BlockingTab>
           _OverlayConfigDialog(blocker: _blocker, initial: _overlayConfig),
     );
     if (saved != null) setState(() => _overlayConfig = saved);
-  }
-
-  Future<String?> _showTextInput(String title, String hint) {
-    final ctrl = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: ctrl,
-          decoration: InputDecoration(hintText: hint),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _snack(String msg) {
@@ -800,7 +777,7 @@ class _ScheduleDialog extends StatefulWidget {
 
 class _ScheduleDialogState extends State<_ScheduleDialog> {
   final _name = TextEditingController();
-  final _appsInput = TextEditingController();
+  Set<String> _selectedApps = {};
   final Set<int> _weekdays = {1, 2, 3, 4, 5};
   TimeOfDay _start = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _end = const TimeOfDay(hour: 17, minute: 0);
@@ -810,7 +787,6 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
   @override
   void dispose() {
     _name.dispose();
-    _appsInput.dispose();
     super.dispose();
   }
 
@@ -844,12 +820,9 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
               ),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _appsInput,
-              decoration: const InputDecoration(
-                labelText: 'App IDs (comma-separated)',
-                hintText: 'com.instagram.android, ...',
-              ),
+            _AppPickerField(
+              selectedApps: _selectedApps,
+              onChanged: (apps) => setState(() => _selectedApps = apps),
             ),
             const SizedBox(height: 16),
             Text('Days', style: Theme.of(context).textTheme.labelLarge),
@@ -895,14 +868,9 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
         ),
         FilledButton(
           onPressed: () {
-            final appIds = _appsInput.text
-                .split(',')
-                .map((s) => s.trim())
-                .where((s) => s.isNotEmpty)
-                .toList();
             if (_name.text.trim().isEmpty ||
                 _weekdays.isEmpty ||
-                appIds.isEmpty) {
+                _selectedApps.isEmpty) {
               return;
             }
             Navigator.pop(
@@ -910,7 +878,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
               BlockSchedule(
                 id: DateTime.now().millisecondsSinceEpoch.toString(),
                 name: _name.text.trim(),
-                appIdentifiers: appIds,
+                appIdentifiers: _selectedApps.toList(),
                 weekdays: _weekdays.toList()..sort(),
                 startTime: _start,
                 endTime: _end,
@@ -1090,12 +1058,11 @@ class _ProfileDialog extends StatefulWidget {
 
 class _ProfileDialogState extends State<_ProfileDialog> {
   final _name = TextEditingController();
-  final _appsInput = TextEditingController();
+  Set<String> _selectedApps = {};
 
   @override
   void dispose() {
     _name.dispose();
-    _appsInput.dispose();
     super.dispose();
   }
 
@@ -1114,12 +1081,10 @@ class _ProfileDialogState extends State<_ProfileDialog> {
             ),
             autofocus: true,
           ),
-          TextField(
-            controller: _appsInput,
-            decoration: const InputDecoration(
-              labelText: 'App IDs (comma-separated)',
-              hintText: 'com.instagram.android, ...',
-            ),
+          const SizedBox(height: 8),
+          _AppPickerField(
+            selectedApps: _selectedApps,
+            onChanged: (apps) => setState(() => _selectedApps = apps),
           ),
         ],
       ),
@@ -1131,17 +1096,12 @@ class _ProfileDialogState extends State<_ProfileDialog> {
         FilledButton(
           onPressed: () {
             if (_name.text.trim().isEmpty) return;
-            final appIds = _appsInput.text
-                .split(',')
-                .map((s) => s.trim())
-                .where((s) => s.isNotEmpty)
-                .toList();
             Navigator.pop(
               context,
               BlockProfile(
                 id: DateTime.now().millisecondsSinceEpoch.toString(),
                 name: _name.text.trim(),
-                appIdentifiers: appIds,
+                appIdentifiers: _selectedApps.toList(),
               ),
             );
           },
@@ -1321,6 +1281,99 @@ class _CapChip extends StatelessWidget {
       padding: EdgeInsets.zero,
       labelPadding: const EdgeInsets.symmetric(horizontal: 4),
       visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App picker field (reusable button that opens the app picker)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AppPickerField extends StatefulWidget {
+  const _AppPickerField({required this.selectedApps, required this.onChanged});
+
+  final Set<String> selectedApps;
+  final ValueChanged<Set<String>> onChanged;
+
+  @override
+  State<_AppPickerField> createState() => _AppPickerFieldState();
+}
+
+class _AppPickerFieldState extends State<_AppPickerField> {
+  List<AppInfo>? _apps;
+  bool _loading = false;
+
+  Future<void> _open() async {
+    if (Platform.isIOS) {
+      setState(() => _loading = true);
+      try {
+        final picked = await AppBlocker.instance.getApps();
+        widget.onChanged(picked.map((a) => a.packageName).toSet());
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('$e')));
+        }
+      } finally {
+        if (mounted) setState(() => _loading = false);
+      }
+      return;
+    }
+
+    if (_apps == null) {
+      setState(() => _loading = true);
+      try {
+        _apps = await AppBlocker.instance.getApps();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('$e')));
+          setState(() => _loading = false);
+        }
+        return;
+      }
+      if (mounted) setState(() => _loading = false);
+    }
+
+    if (!mounted) return;
+    final selected = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AppPicker(apps: _apps!, initial: widget.selectedApps),
+    );
+    if (selected != null) widget.onChanged(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = widget.selectedApps.length;
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _loading ? null : _open,
+            icon: _loading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.apps, size: 18),
+            label: Text(count == 0 ? 'Select apps…' : '$count app(s) selected'),
+          ),
+        ),
+        if (count > 0) ...[
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Clear selection',
+            onPressed: () => widget.onChanged({}),
+          ),
+        ],
+      ],
     );
   }
 }
