@@ -12,19 +12,43 @@ A Flutter plugin to block apps on Android and iOS.
 
 ## Supported Functions
 
+**Permissions & capabilities**
 - `checkPermission()` — Check if required permissions are granted
 - `requestPermission()` — Request permissions from user
-- `getApps()` — Get list of installed apps (Android) or show app picker (iOS)
+- `getCapabilities()` — Check which features are available on the current platform
+
+**App discovery**
+- `getApps()` — List installed apps (Android) or show FamilyActivityPicker (iOS)
+
+**Blocking**
 - `blockApps(List<String>)` — Block specific apps
 - `blockAll()` — Block all apps
 - `unblockApps(List<String>)` — Unblock specific apps
 - `unblockAll()` — Unblock all apps
-- `getBlockedApps()` — Get list of currently blocked apps
-- `getAppStatus(String)` — Check block status of a specific app
-- `setOverlayConfig(OverlayConfig)` — Customize block overlay (Android only)
-- `addSchedule(BlockSchedule)` — Add a blocking schedule
-- `onBlockEvent` — Stream of block/unblock events
-- `getCapabilities()` — Check available features on current platform
+- `getBlockedApps()` — List currently blocked app identifiers
+- `getAppStatus(String)` — Get block status of a specific app
+- `setOverlayConfig(OverlayConfig)` — Customize the block overlay (Android only)
+- `getOverlayConfig()` — Get current overlay configuration (Android only)
+
+**Schedules (Android only)**
+- `addSchedule(BlockSchedule)` — Add a time-based blocking schedule
+- `updateSchedule(BlockSchedule)` — Update an existing schedule
+- `removeSchedule(String)` — Remove a schedule
+- `getSchedules()` — List all schedules
+- `enableSchedule(String)` — Enable a schedule
+- `disableSchedule(String)` — Disable a schedule without removing it
+
+**Profiles**
+- `createProfile(BlockProfile)` — Create a profile grouping apps to block together
+- `updateProfile(BlockProfile)` — Update an existing profile
+- `deleteProfile(String)` — Delete a profile
+- `getProfiles()` — List all profiles
+- `activateProfile(String)` — Activate a profile (blocks its apps)
+- `deactivateProfile(String)` — Deactivate a profile
+- `getActiveProfile()` — Get the currently active profile
+
+**Events**
+- `onBlockEvent` — Stream of block/unblock/schedule events
 
 ## Platform Support
 
