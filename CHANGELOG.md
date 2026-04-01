@@ -1,3 +1,41 @@
+## 2.0.0
+
+### ⚠️ Breaking Changes
+
+**General:**
+- getBlockedApps() now returns a list of all currently blocked app IDs, including those blocked by schedules and profiles (previously only directly blocked apps). **Requires action** if code relied on the old behavior. 
+
+**Android:**
+- Replaced foreground service with AccessibilityService (better battery efficiency than polling)
+- **Important:** Users must now enable Settings → Accessibility → App Blocker - checkPermission() and requestPermission() correctly handle this
+- `FOREGROUND_SERVICE` and `PACKAGE_USAGE_STATS` permissions no longer needed, can be removed from AndroidManifest if manually added
+
+**iOS:**
+- Minimum version bumped to iOS 16.0
+- App token format changed for stability
+  - before (indexed: "app_token_0"): same id could refer to different apps
+  - now (JWT: "eyJkXR..."): stable unique identifier for each app
+  - APIs stay the same but old app tokens will no longer work if stored from previous versions
+
+---
+
+### Features
+- Added `getOverlayConfig()` API
+- New events: `profileActivated`, `profileDeactivated`
+- Improved `getBlockedApps()` to include schedules and profiles
+
+### Fixes
+- Fixed custom Android overlay not working
+- Fixed `SCHEDULE_EXACT_ALARM` permission not requested
+- Fixed iOS token stability issues
+- Fixed schedules not activating when enabled during active time
+- Fixed schedules lost after app restart
+
+### Changes
+- Improved error handling in native code
+- Clarified iOS schedule limitations in docs
+- Extended example app to demonstrate all features
+
 ## 1.0.6
 
 - Fix installation version in README
