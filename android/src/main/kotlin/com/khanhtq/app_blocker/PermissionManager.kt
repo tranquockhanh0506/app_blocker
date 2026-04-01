@@ -5,27 +5,24 @@ import android.app.AlarmManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.text.TextUtils
 import com.khanhtq.app_blocker.blocking.AppBlockerAccessibilityService
 
 /**
- * Checks and requests the three permissions required for app blocking:
+ * Checks and requests the permissions required for app blocking:
  *
  * 1. **Accessibility service** — [AppBlockerAccessibilityService] must be enabled
  *    by the user in Settings → Accessibility. This is the core detection mechanism.
  *
- * 2. **Overlay (SYSTEM_ALERT_WINDOW)** — required to draw the block screen over
- *    other apps when a blocked app is detected in the foreground.
- *
- * 3. **Exact alarms (SCHEDULE_EXACT_ALARM)** — required on Android 12+ (API 31+)
+ * 2. **Exact alarms (SCHEDULE_EXACT_ALARM)** — required on Android 12+ (API 31+)
  *    to trigger schedule start/end at precise times via [AlarmManager].
  *
- * All three are "special" permissions that cannot be granted at runtime;
+ * Both are "special" permissions that cannot be granted at runtime;
  * the user must navigate to system settings. [requestAllPermissions] opens the
  * appropriate settings screen for the first missing permission.
+ *
  */
 class PermissionManager(private val context: Context) {
 
@@ -35,14 +32,13 @@ class PermissionManager(private val context: Context) {
 
     /**
      * Returns the aggregate permission status string:
-     * - `"granted"` — accessibility service enabled **and** overlay permission granted.
+     * - `"granted"` — accessibility service enabled **and** exact-alarm permission granted.
      * - `"denied"`  — one or more required permissions are missing.
      */
     fun checkAllPermissions(): String {
         val accessibility = checkAccessibilityPermission()
-        val overlay = checkOverlayPermission()
         val exactAlarm = checkExactAlarmPermission()
-        return if (accessibility && overlay && exactAlarm) "granted" else "denied"
+        return if (accessibility && exactAlarm) "granted" else "denied"
     }
 
     /**
@@ -55,10 +51,6 @@ class PermissionManager(private val context: Context) {
     fun requestAllPermissions(activity: Activity): String {
         if (!checkAccessibilityPermission()) {
             requestAccessibilityPermission(activity)
-            return "denied"
-        }
-        if (!checkOverlayPermission()) {
-            requestOverlayPermission(activity)
             return "denied"
         }
         if (!checkExactAlarmPermission()) {
@@ -101,38 +93,6 @@ class PermissionManager(private val context: Context) {
     }
 
     // ------------------------------------------------------------------
-    // Overlay permission
-    // ------------------------------------------------------------------
-
-    /**
-     * Returns `true` if the app is allowed to draw over other apps
-     * (`SYSTEM_ALERT_WINDOW`). Always returns `true` on API < 23 where
-     * the permission check API is unavailable.
-     */
-    fun checkOverlayPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Settings.canDrawOverlays(context)
-        } else {
-            true
-        }
-    }
-
-    /**
-     * Opens "Display over other apps" settings for this application so the
-     * user can grant overlay permission.
-     */
-    fun requestOverlayPermission(activity: Activity) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(activity)) {
-            activity.startActivity(
-                Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${activity.packageName}"),
-                )
-            )
-        }
-    }
-
-    // ------------------------------------------------------------------
     // Exact alarm permission (Android 12+ / API 31+)
     // ------------------------------------------------------------------
 
@@ -158,7 +118,7 @@ class PermissionManager(private val context: Context) {
             activity.startActivity(
                 Intent(
                     Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                    Uri.parse("package:${activity.packageName}"),
+                    android.net.Uri.parse("package:${activity.packageName}"),
                 )
             )
         }

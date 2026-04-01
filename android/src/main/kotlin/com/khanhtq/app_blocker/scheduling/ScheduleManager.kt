@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import com.khanhtq.app_blocker.blocking.BlockingServiceManager
 import com.khanhtq.app_blocker.persistence.BlockerPreferences
@@ -19,16 +20,16 @@ import java.util.Calendar
  * the Dart side.
  */
 data class ScheduleData(
-    val id: String,
-    val name: String,
-    val appIdentifiers: List<String>,
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("appIdentifiers") val appIdentifiers: List<String>,
     /** ISO 8601 weekday numbers: 1 = Monday … 7 = Sunday. */
-    val weekdays: List<Int>,
-    val startHour: Int,
-    val startMinute: Int,
-    val endHour: Int,
-    val endMinute: Int,
-    val enabled: Boolean,
+    @SerializedName("weekdays") val weekdays: List<Int>,
+    @SerializedName("startHour") val startHour: Int,
+    @SerializedName("startMinute") val startMinute: Int,
+    @SerializedName("endHour") val endHour: Int,
+    @SerializedName("endMinute") val endMinute: Int,
+    @SerializedName("enabled") val enabled: Boolean,
 ) {
     /** Converts this instance to the map format sent over the Flutter channel. */
     fun toMap(): Map<String, Any?> = mapOf(

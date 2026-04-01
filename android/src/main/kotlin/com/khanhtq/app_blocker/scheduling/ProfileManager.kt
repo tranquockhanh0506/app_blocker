@@ -2,6 +2,7 @@ package com.khanhtq.app_blocker.scheduling
 
 import android.content.Context
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import com.khanhtq.app_blocker.blocking.BlockingServiceManager
 import com.khanhtq.app_blocker.event.BlockEventStreamHandler
@@ -12,11 +13,11 @@ import com.khanhtq.app_blocker.persistence.BlockerPreferences
  * that can be activated/deactivated atomically.
  */
 data class ProfileData(
-    val id: String,
-    val name: String,
-    val appIdentifiers: List<String>,
-    val schedules: List<ScheduleData>,
-    val isActive: Boolean,
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("appIdentifiers") val appIdentifiers: List<String>,
+    @SerializedName("schedules") val schedules: List<ScheduleData>,
+    @SerializedName("isActive") val isActive: Boolean,
 ) {
     /** Converts this instance to the map format sent over the Flutter channel. */
     fun toMap(): Map<String, Any?> = mapOf(

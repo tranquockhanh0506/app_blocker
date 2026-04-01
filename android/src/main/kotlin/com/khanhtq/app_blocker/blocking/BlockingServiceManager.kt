@@ -1,6 +1,7 @@
 package com.khanhtq.app_blocker.blocking
 
 import android.content.Context
+import android.content.Intent
 import com.khanhtq.app_blocker.event.BlockEventStreamHandler
 import com.khanhtq.app_blocker.persistence.BlockerPreferences
 
@@ -12,6 +13,9 @@ import com.khanhtq.app_blocker.persistence.BlockerPreferences
  * on every window-change event. This class is the single writer of that state,
  * ensuring all updates go through one place and emit the corresponding
  * [BlockEventStreamHandler] events to the Flutter side.
+ *
+ * When blocking is deactivated, a [BlockedAppActivity.ACTION_DISMISS] broadcast is
+ * sent so that the block screen dismisses itself if it is currently visible.
  */
 class BlockingServiceManager(private val context: Context) {
 
@@ -53,11 +57,12 @@ class BlockingServiceManager(private val context: Context) {
 
     /**
      * Disables all blocking and clears the blocked-apps set.
-     * Emits a single `"unblocked"` event.
+     * Emits a single `"unblocked"` event and dismisses the block screen if visible.
      */
     fun stopBlocking() {
         preferences.setIsBlocking(false)
         preferences.setBlockAll(false)
+        dismissBlockScreen()
 
         BlockEventStreamHandler.sendEvent(
             mapOf(
@@ -69,7 +74,7 @@ class BlockingServiceManager(private val context: Context) {
 
     /**
      * Removes [packages] from the blocked set. If the set becomes empty,
-     * blocking is fully disabled.
+     * blocking is fully disabled and the block screen is dismissed if visible.
      */
     fun stopBlockingApps(packages: List<String>) {
         val remaining = preferences.getBlockedApps().toMutableSet()
@@ -78,6 +83,7 @@ class BlockingServiceManager(private val context: Context) {
 
         if (remaining.isEmpty()) {
             preferences.setIsBlocking(false)
+            dismissBlockScreen()
         }
     }
 
@@ -92,4 +98,14 @@ class BlockingServiceManager(private val context: Context) {
 
     /** Returns `true` if the blocking gate is active. */
     fun isBlocking(): Boolean = preferences.isBlocking()
+
+    // ------------------------------------------------------------------
+    // Private helpers
+    // ------------------------------------------------------------------
+
+    private fun dismissBlockScreen() {
+        context.sendBroadcast(Intent(BlockedAppActivity.ACTION_DISMISS).apply {
+            setPackage(context.packageName)
+        })
+    }
 }

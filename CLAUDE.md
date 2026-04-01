@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `app_blocker` is a Flutter plugin (v2.0.0) that provides cross-platform app blocking on Android and iOS. It is published as a pub.dev package.
 
-- **Android**: Min SDK 24 (Android 7.0) — uses AccessibilityService + overlay windows
+- **Android**: Min SDK 24 (Android 7.0) — uses AccessibilityService + a full-screen Activity for the block screen
 - **iOS**: Min iOS 16.0 — uses Screen Time API (FamilyControls + ManagedSettings)
 
 ## Common Commands
@@ -60,10 +60,10 @@ AppBlocker (Dart singleton)
 |----------------|------|
 | `AppBlockerPlugin.kt` | Entry point; routes method calls to managers |
 | `AppResolver.kt` | Resolves installed apps; converts metadata for platform channel |
-| `PermissionManager.kt` | `PACKAGE_USAGE_STATS`, `SYSTEM_ALERT_WINDOW`, `QUERY_ALL_PACKAGES` |
-| `blocking/AppBlockerAccessibilityService.kt` | Detects foreground app changes (battery-efficient; replaced 200 ms polling loop) |
-| `blocking/BlockingServiceManager.kt` | Core blocking state management; emits events |
-| `blocking/OverlayManager.kt` | Manages the full-screen overlay shown when an app is blocked |
+| `PermissionManager.kt` | Accessibility service + exact-alarm permission checks (`SYSTEM_ALERT_WINDOW` no longer required) |
+| `blocking/AppBlockerAccessibilityService.kt` | Detects foreground app changes; presses HOME then launches `BlockedAppActivity` |
+| `blocking/BlockedAppActivity.kt` | Full-screen block screen Activity (no overlay permission needed) |
+| `blocking/BlockingServiceManager.kt` | Core blocking state management; emits events; sends dismiss broadcast to `BlockedAppActivity` |
 | `event/BlockEventStreamHandler.kt` | Delivers block events to Flutter via `EventChannel` |
 | `scheduling/ScheduleManager.kt` | Time-based blocking via `AlarmManager` |
 | `scheduling/ScheduleAlarmReceiver.kt` | Receives `AlarmManager` broadcasts to activate/deactivate schedules |
@@ -71,7 +71,7 @@ AppBlocker (Dart singleton)
 | `persistence/BlockerPreferences.kt` | `SharedPreferences` wrapper |
 | `receiver/BootReceiver.kt` | Restores blocking state after device reboot |
 
-Required permissions in `AndroidManifest.xml`: `PACKAGE_USAGE_STATS`, `SYSTEM_ALERT_WINDOW`, `QUERY_ALL_PACKAGES`, `RECEIVE_BOOT_COMPLETED`, `SCHEDULE_EXACT_ALARM`.
+Required permissions in `AndroidManifest.xml`: `PACKAGE_USAGE_STATS`, `QUERY_ALL_PACKAGES`, `RECEIVE_BOOT_COMPLETED`, `SCHEDULE_EXACT_ALARM`. (`SYSTEM_ALERT_WINDOW` is no longer needed — the block screen is a regular Activity.)
 
 ### iOS Layer (`ios/Classes/`)
 

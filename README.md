@@ -79,9 +79,13 @@ dependencies:
 
 No additional setup required. The plugin automatically adds these permissions:
 
-- `SYSTEM_ALERT_WINDOW` — Block overlay (requires `requestPermission()`)- `SCHEDULE_EXACT_ALARM` — Time-based blocking (requires `requestPermission()` on Android 13+)
+- `SCHEDULE_EXACT_ALARM` — Time-based blocking (requires `requestPermission()`, might get auto-granted on Android 12 & 13 ([source](https://developer.android.com/about/versions/14/changes/schedule-exact-alarms)))
 - `QUERY_ALL_PACKAGES` — List installed apps
 - `RECEIVE_BOOT_COMPLETED` — Restore schedules after reboot
+
+During runtime, by calling `requestPermission()`, the user will be prompted to grant:
+- SCHEDULE_EXACT_ALARM (if not auto-granted)
+- Accessibility Service permission (opens system settings)
 
 ### iOS
 
