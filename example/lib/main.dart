@@ -46,7 +46,7 @@ class _ShellState extends State<_Shell> {
           _BlockingTab(
             key: _blockingTabKey,
             onUnblockAll: () {
-              _schedulesTabKey.currentState?._load();
+              if (Platform.isAndroid) _schedulesTabKey.currentState?._load();
               _profilesTabKey.currentState?._load();
             },
           ),
