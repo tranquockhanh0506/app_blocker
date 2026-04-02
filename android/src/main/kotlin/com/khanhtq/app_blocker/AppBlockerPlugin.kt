@@ -217,13 +217,21 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
             }
 
             UNBLOCK_ALL -> {
+                profileManager.deactivateActiveProfile()
+                scheduleManager.disableAll()
                 blockingServiceManager.stopBlocking()
                 result.success(null)
             }
 
-            GET_BLOCKED_APPS -> result.success(
-                (blockingServiceManager.getBlockedApps() + scheduleManager.getActivelyBlockedApps()).toList()
-            )
+            GET_BLOCKED_APPS -> {
+                if (preferences.isBlocking() && preferences.isBlockAll()) {
+                    result.success(listOf("__all__"))
+                } else {
+                    result.success(
+                        (blockingServiceManager.getBlockedApps() + scheduleManager.getActivelyBlockedApps()).toList()
+                    )
+                }
+            }
 
             GET_APP_STATUS -> {
                 val identifier = call.argument<String>("identifier") ?: run {

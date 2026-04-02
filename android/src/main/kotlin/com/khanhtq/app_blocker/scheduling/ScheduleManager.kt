@@ -159,7 +159,7 @@ class ScheduleManager(private val context: Context) {
         // Cancel alarms and unblock apps if schedule is currently active
         cancelAlarms(id)
         if (schedule.enabled && isCurrentlyActive(schedule)) {
-            blockingServiceManager.stopBlocking()
+            blockingServiceManager.stopBlockingApps(schedule.appIdentifiers)
         }
 
         schedules.removeAll { it.id == id }
@@ -184,6 +184,15 @@ class ScheduleManager(private val context: Context) {
     /** Disables the schedule with [id] and cancels its alarms. */
     fun disableSchedule(id: String) {
         updateEnabledState(id, enabled = false)
+    }
+
+    /** Disables all schedules and cancels all their alarms. Does not remove schedules from storage. */
+    fun disableAll() {
+        val schedules = loadSchedules()
+        for (schedule in schedules) {
+            cancelAlarms(schedule.id)
+        }
+        saveSchedules(schedules.map { it.copy(enabled = false) })
     }
 
     /** Re-registers alarms for all enabled schedules and activates any that are currently active. Called on device boot and plugin attach. */
@@ -297,7 +306,7 @@ class ScheduleManager(private val context: Context) {
             if (isCurrentlyActive(schedules[index])) blockingServiceManager.startBlocking(schedules[index].appIdentifiers)
         } else {
             cancelAlarms(id)
-            if (isCurrentlyActive(schedules[index])) blockingServiceManager.stopBlocking()
+            if (isCurrentlyActive(schedules[index])) blockingServiceManager.stopBlockingApps(schedules[index].appIdentifiers)
         }
     }
 

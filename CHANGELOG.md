@@ -3,7 +3,8 @@
 ### ⚠️ Breaking Changes
 
 **General:**
-- getBlockedApps() now returns a list of all currently blocked app IDs, including those blocked by schedules and profiles (previously only directly blocked apps). **Requires action** if code relied on the old behavior. 
+- getBlockedApps() now returns a list of all currently blocked app IDs, including those blocked by schedules and profiles (previously only directly blocked apps).
+- unblockAll() now also deactivates any active profile and disables all schedules (otherwise leads to inconsistent state with all apps unblocked but potentially active schedules/profiles).
 
 **Android:**
 - Replaced foreground service with AccessibilityService (better battery efficiency than polling)

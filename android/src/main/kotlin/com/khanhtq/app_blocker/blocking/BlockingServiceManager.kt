@@ -30,7 +30,8 @@ class BlockingServiceManager(private val context: Context) {
      * Emits a `"blocked"` event for each package.
      */
     fun startBlocking(packages: List<String>) {
-        preferences.setBlockedApps(packages.toSet())
+        val existing = preferences.getBlockedApps()
+        preferences.setBlockedApps(existing + packages.toSet())
         preferences.setIsBlocking(true)
         preferences.setBlockAll(false)
 
