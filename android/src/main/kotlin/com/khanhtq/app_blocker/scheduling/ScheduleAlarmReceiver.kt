@@ -32,7 +32,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             }
 
             ScheduleManager.ACTION_SCHEDULE_END -> {
-                blockingServiceManager.stopBlocking()
+                blockingServiceManager.stopBlockingApps(appIdentifiers.toList())
                 BlockEventStreamHandler.sendEvent(
                     mapOf(
                         "type" to "scheduleDeactivated",

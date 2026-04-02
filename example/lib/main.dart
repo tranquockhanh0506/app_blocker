@@ -34,6 +34,8 @@ class _Shell extends StatefulWidget {
 class _ShellState extends State<_Shell> {
   int _tab = 0;
   final _blockingTabKey = GlobalKey<_BlockingTabState>();
+  final _schedulesTabKey = GlobalKey<_SchedulesTabState>();
+  final _profilesTabKey = GlobalKey<_ProfilesTabState>();
 
   @override
   Widget build(BuildContext context) {
@@ -41,9 +43,15 @@ class _ShellState extends State<_Shell> {
       body: IndexedStack(
         index: _tab,
         children: [
-          _BlockingTab(key: _blockingTabKey),
-          const _SchedulesTab(),
-          const _ProfilesTab(),
+          _BlockingTab(
+            key: _blockingTabKey,
+            onUnblockAll: () {
+              _schedulesTabKey.currentState?._load();
+              _profilesTabKey.currentState?._load();
+            },
+          ),
+          _SchedulesTab(key: _schedulesTabKey),
+          _ProfilesTab(key: _profilesTabKey),
           const _EventsTab(),
         ],
       ),
@@ -72,7 +80,9 @@ class _ShellState extends State<_Shell> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BlockingTab extends StatefulWidget {
-  const _BlockingTab({super.key});
+  const _BlockingTab({super.key, this.onUnblockAll});
+
+  final VoidCallback? onUnblockAll;
 
   @override
   State<_BlockingTab> createState() => _BlockingTabState();
@@ -236,6 +246,7 @@ class _BlockingTabState extends State<_BlockingTab>
       await _blocker.unblockAll();
       _snack('All apps unblocked');
       _refreshBlocked();
+      widget.onUnblockAll?.call();
     } catch (e) {
       _err('$e');
     }
@@ -366,19 +377,12 @@ class _BlockingTabState extends State<_BlockingTab>
 
           // Block list
           _Section(
-            title: 'Block List (${_blockedApps.length})',
+            title: 'Currently Blocked Apps (${_blockedApps.length})',
             trailing: IconButton(
               icon: const Icon(Icons.refresh),
               onPressed: _refreshBlocked,
             ),
             children: [
-              Text(
-                'Apps currently blocked — includes explicit blocks, active schedules, and active profiles.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 8),
               if (_blockedApps.isEmpty)
                 Text(
                   'None',
@@ -469,21 +473,7 @@ class _BlockingTabState extends State<_BlockingTab>
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Block All mode
-          _Section(
-            title: 'Block All Mode',
-            children: [
-              Text(
-                'Blocks every app on the device, independently of the selection above.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 8),
+              const Divider(height: 24),
               Row(
                 children: [
                   Expanded(
@@ -492,14 +482,14 @@ class _BlockingTabState extends State<_BlockingTab>
                       style: FilledButton.styleFrom(
                         backgroundColor: theme.colorScheme.error,
                       ),
-                      child: const Text('Enable'),
+                      child: const Text('Block all apps'),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton(
                       onPressed: _unblockAll,
-                      child: const Text('Disable'),
+                      child: const Text('Unblock all apps'),
                     ),
                   ),
                 ],
@@ -642,7 +632,7 @@ class _OverlayConfigDialogState extends State<_OverlayConfigDialog> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SchedulesTab extends StatefulWidget {
-  const _SchedulesTab();
+  const _SchedulesTab({super.key});
 
   @override
   State<_SchedulesTab> createState() => _SchedulesTabState();
@@ -909,7 +899,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ProfilesTab extends StatefulWidget {
-  const _ProfilesTab();
+  const _ProfilesTab({super.key});
 
   @override
   State<_ProfilesTab> createState() => _ProfilesTabState();

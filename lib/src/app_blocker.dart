@@ -108,7 +108,10 @@ class AppBlocker {
     return _platform.unblockApps(appIdentifiers);
   }
 
-  /// Unblocks all apps and stops the blocking service.
+  /// Stops all blocking.
+  ///
+  /// Deactivates the active profile (if any), disables all schedules, and
+  /// stops any direct blocking started via [blockApps] or [blockAll].
   Future<void> unblockAll() {
     return _platform.unblockAll();
   }

@@ -157,6 +157,13 @@ class ProfileManager(private val context: Context) {
         )
     }
 
+    /** Deactivates the currently active profile. Returns `true` if one was active. */
+    fun deactivateActiveProfile(): Boolean {
+        val activeId = loadProfiles().find { it.isActive }?.id ?: return false
+        deactivateProfile(activeId)
+        return true
+    }
+
     /** Deactivates the profile with [id]. No-op if it is not active. */
     fun deactivateProfile(id: String) {
         val profiles = loadProfiles().toMutableList()
@@ -193,7 +200,7 @@ class ProfileManager(private val context: Context) {
             )
         }
         
-        blockingServiceManager.stopBlocking()
+        blockingServiceManager.stopBlockingApps(profile.appIdentifiers)
         for (schedule in profile.schedules) {
             scheduleManager.removeSchedule(schedule.id)
         }
