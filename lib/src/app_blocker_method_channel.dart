@@ -7,7 +7,7 @@ import 'models/app_info.dart';
 import 'models/block_event.dart';
 import 'models/block_status.dart';
 import 'models/blocker_capabilities.dart';
-import 'models/overlay_config.dart';
+import 'models/block_screen_config.dart';
 import 'models/permission_status.dart';
 import 'models/profile.dart';
 import 'models/schedule.dart';
@@ -117,23 +117,23 @@ class MethodChannelAppBlocker extends AppBlockerPlatform {
     return _blockEventStream!;
   }
 
-  // -- Overlay --
+  // -- Block Screen Config --
 
   @override
-  Future<void> setOverlayConfig(OverlayConfig config) async {
+  Future<void> setBlockScreenConfig(BlockScreenConfig config) async {
     await _invokeMethod<void>(
-      AppBlockerConstants.setOverlayConfig,
+      AppBlockerConstants.setBlockScreenConfig,
       config.toMap(),
     );
   }
 
   @override
-  Future<OverlayConfig?> getOverlayConfig() async {
+  Future<BlockScreenConfig?> getBlockScreenConfig() async {
     final result = await _invokeMethod<Map>(
-      AppBlockerConstants.getOverlayConfig,
+      AppBlockerConstants.getBlockScreenConfig,
     );
     if (result == null) return null;
-    return OverlayConfig.fromMap(Map<String, dynamic>.from(result));
+    return BlockScreenConfig.fromMap(Map<String, dynamic>.from(result));
   }
 
   // -- Scheduling --

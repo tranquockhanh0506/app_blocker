@@ -56,10 +56,10 @@ public class AppBlockerPlugin: NSObject, FlutterPlugin {
         case "unblockAll":          handleUnblockAll(result: result)
         case "getBlockedApps":      handleGetBlockedApps(result: result)
         case "getAppStatus":        handleGetAppStatus(call: call, result: result)
-        case "setOverlayConfig":
+        case "setBlockScreenConfig":
             result(FlutterError(
                 code: "PLATFORM_UNSUPPORTED",
-                message: "Overlay configuration is not supported on iOS.",
+                message: "Block screen configuration is not supported on iOS.",
                 details: nil
             ))
         case "addSchedule":         handleAddSchedule(call: call, result: result)
@@ -84,7 +84,7 @@ public class AppBlockerPlugin: NSObject, FlutterPlugin {
     private func handleGetCapabilities(result: @escaping FlutterResult) {
         result([
             "canBlockApps": true,
-            "canShowOverlay": false,
+            "canCustomizeBlockScreen": false,
             "canUseSystemShield": true,
             "canSchedule": false,
             "canGetInstalledApps": false,

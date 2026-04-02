@@ -5,7 +5,7 @@ import 'models/app_info.dart';
 import 'models/block_event.dart';
 import 'models/block_status.dart';
 import 'models/blocker_capabilities.dart';
-import 'models/overlay_config.dart';
+import 'models/block_screen_config.dart';
 import 'models/permission_status.dart';
 import 'models/profile.dart';
 import 'models/schedule.dart';
@@ -97,16 +97,20 @@ abstract class AppBlockerPlatform extends PlatformInterface {
     throw UnimplementedError('onBlockEvent has not been implemented.');
   }
 
-  // -- Overlay (Android only) --
+  // -- Block Screen Config (Android only) --
 
-  /// Sets the overlay configuration for the Android blocking screen.
-  Future<void> setOverlayConfig(OverlayConfig config) {
-    throw UnimplementedError('setOverlayConfig() has not been implemented.');
+  /// Sets the block screen configuration for the Android block screen.
+  Future<void> setBlockScreenConfig(BlockScreenConfig config) {
+    throw UnimplementedError(
+      'setBlockScreenConfig() has not been implemented.',
+    );
   }
 
-  /// Returns the current overlay configuration. Returns null if none has been saved.
-  Future<OverlayConfig?> getOverlayConfig() {
-    throw UnimplementedError('getOverlayConfig() has not been implemented.');
+  /// Returns the current block screen configuration. Returns null if none has been saved.
+  Future<BlockScreenConfig?> getBlockScreenConfig() {
+    throw UnimplementedError(
+      'getBlockScreenConfig() has not been implemented.',
+    );
   }
 
   // -- Scheduling --

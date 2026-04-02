@@ -15,7 +15,7 @@ class MockAppBlockerPlatform extends AppBlockerPlatform
 
   BlockerCapabilities capabilitiesResult = const BlockerCapabilities(
     canBlockApps: true,
-    canShowOverlay: true,
+    canCustomizeBlockScreen: true,
     canUseSystemShield: false,
     canSchedule: true,
     canGetInstalledApps: true,
@@ -90,13 +90,13 @@ class MockAppBlockerPlatform extends AppBlockerPlatform
 
   void emitEvent(BlockEvent event) => _eventController.add(event);
 
-  // -- Overlay --
+  // -- Block Screen Config --
 
-  OverlayConfig? lastOverlayConfig;
+  BlockScreenConfig? lastBlockScreenConfig;
 
   @override
-  Future<void> setOverlayConfig(OverlayConfig config) async {
-    lastOverlayConfig = config;
+  Future<void> setBlockScreenConfig(BlockScreenConfig config) async {
+    lastBlockScreenConfig = config;
   }
 
   // -- Scheduling --
@@ -201,7 +201,7 @@ void main() {
       final caps = await blocker.getCapabilities();
 
       expect(caps.canBlockApps, isTrue);
-      expect(caps.canShowOverlay, isTrue);
+      expect(caps.canCustomizeBlockScreen, isTrue);
       expect(caps.canUseSystemShield, isFalse);
       expect(caps.canSchedule, isTrue);
       expect(caps.canGetInstalledApps, isTrue);
@@ -389,20 +389,23 @@ void main() {
     });
   });
 
-  // == Overlay ==
+  // == Block Screen Config ==
 
-  group('setOverlayConfig', () {
+  group('setBlockScreenConfig', () {
     test('completes and passes config to platform', () async {
-      const config = OverlayConfig(
+      const config = BlockScreenConfig(
         title: 'Blocked',
         subtitle: 'Focus time',
         message: 'This app is blocked.',
       );
 
-      await blocker.setOverlayConfig(config);
-      expect(mockPlatform.lastOverlayConfig?.title, 'Blocked');
-      expect(mockPlatform.lastOverlayConfig?.subtitle, 'Focus time');
-      expect(mockPlatform.lastOverlayConfig?.message, 'This app is blocked.');
+      await blocker.setBlockScreenConfig(config);
+      expect(mockPlatform.lastBlockScreenConfig?.title, 'Blocked');
+      expect(mockPlatform.lastBlockScreenConfig?.subtitle, 'Focus time');
+      expect(
+        mockPlatform.lastBlockScreenConfig?.message,
+        'This app is blocked.',
+      );
     });
   });
 

@@ -5,11 +5,14 @@
 **General:**
 - getBlockedApps() now returns a list of all currently blocked app IDs, including those blocked by schedules and profiles (previously only directly blocked apps).
 - unblockAll() now also deactivates any active profile and disables all schedules (otherwise leads to inconsistent state with all apps unblocked but potentially active schedules/profiles).
+- Capability `canShowOverlay` renamed to `canCustomizeBlockScreen` in `BlockerCapabilities`.
 
 **Android:**
 - Replaced foreground service with AccessibilityService (better battery efficiency than polling)
 - **Important:** Users must now enable Settings → Accessibility → App Blocker - checkPermission() and requestPermission() correctly handle this
-- `FOREGROUND_SERVICE` and `PACKAGE_USAGE_STATS` permissions no longer needed, can be removed from AndroidManifest if manually added
+- `FOREGROUND_SERVICE`, `PACKAGE_USAGE_STATS`, and `SYSTEM_ALERT_WINDOW` permissions no longer needed, can be removed from AndroidManifest if manually added
+- Replaced overlay window with a normal Android Activity for the block screen (needed for robust behavior with AccessibilityService-based approach) `SYSTEM_ALERT_WINDOW` permission no longer required
+- `setOverlayConfig()`/`getOverlayConfig()` renamed to `setBlockScreenConfig()`/`getBlockScreenConfig()`; `OverlayConfig` renamed to `BlockScreenConfig`.
 
 **iOS:**
 - Minimum version bumped to iOS 16.0
@@ -21,12 +24,12 @@
 ---
 
 ### Features
-- Added `getOverlayConfig()` API
+- Added `getBlockScreenConfig()` API
 - New events: `profileActivated`, `profileDeactivated`
 - Improved `getBlockedApps()` to include schedules and profiles
 
 ### Fixes
-- Fixed custom Android overlay not working
+- Fixed custom Android block screen config not being applied
 - Fixed `SCHEDULE_EXACT_ALARM` permission not requested
 - Fixed iOS token stability issues
 - Fixed schedules not activating when enabled during active time

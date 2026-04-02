@@ -98,7 +98,7 @@ class _BlockingTabState extends State<_BlockingTab>
   Set<String> _selectedApps = {};
   List<String> _blockedApps = [];
   bool _loadingApps = false;
-  OverlayConfig? _overlayConfig;
+  BlockScreenConfig? _blockScreenConfig;
 
   @override
   void initState() {
@@ -107,7 +107,7 @@ class _BlockingTabState extends State<_BlockingTab>
     _checkPermission();
     _loadCaps();
     _refreshBlocked();
-    _loadOverlayConfig();
+    _loadBlockScreenConfig();
   }
 
   @override
@@ -151,10 +151,10 @@ class _BlockingTabState extends State<_BlockingTab>
     }
   }
 
-  Future<void> _loadOverlayConfig() async {
+  Future<void> _loadBlockScreenConfig() async {
     try {
-      final config = await _blocker.getOverlayConfig();
-      if (mounted) setState(() => _overlayConfig = config);
+      final config = await _blocker.getBlockScreenConfig();
+      if (mounted) setState(() => _blockScreenConfig = config);
     } catch (_) {}
   }
 
@@ -263,13 +263,15 @@ class _BlockingTabState extends State<_BlockingTab>
     }
   }
 
-  Future<void> _configureOverlay() async {
-    final saved = await showDialog<OverlayConfig>(
+  Future<void> _configureBlockScreen() async {
+    final saved = await showDialog<BlockScreenConfig>(
       context: context,
-      builder: (_) =>
-          _OverlayConfigDialog(blocker: _blocker, initial: _overlayConfig),
+      builder: (_) => _BlockScreenConfigDialog(
+        blocker: _blocker,
+        initial: _blockScreenConfig,
+      ),
     );
-    if (saved != null) setState(() => _overlayConfig = saved);
+    if (saved != null) setState(() => _blockScreenConfig = saved);
   }
 
   void _snack(String msg) {
@@ -359,7 +361,7 @@ class _BlockingTabState extends State<_BlockingTab>
                   runSpacing: 4,
                   children: [
                     _CapChip('Block apps', _caps!.canBlockApps),
-                    _CapChip('Overlay', _caps!.canShowOverlay),
+                    _CapChip('Block screen', _caps!.canCustomizeBlockScreen),
                     _CapChip('Shield', _caps!.canUseSystemShield),
                     _CapChip('Schedule', _caps!.canSchedule),
                     _CapChip('App list', _caps!.canGetInstalledApps),
@@ -512,17 +514,17 @@ class _BlockingTabState extends State<_BlockingTab>
             ],
           ),
 
-          // Overlay config (Android only)
+          // Block screen config (Android only)
           if (Platform.isAndroid) ...[
             const SizedBox(height: 12),
             _Section(
-              title: 'Overlay Config (Android)',
+              title: 'Block Screen Config (Android)',
               children: [
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: _configureOverlay,
-                    child: const Text('Configure Overlay…'),
+                    onPressed: _configureBlockScreen,
+                    child: const Text('Configure Block Screen…'),
                   ),
                 ),
               ],
@@ -534,17 +536,18 @@ class _BlockingTabState extends State<_BlockingTab>
   }
 }
 
-// Overlay config dialog (Android-only)
-class _OverlayConfigDialog extends StatefulWidget {
-  const _OverlayConfigDialog({required this.blocker, this.initial});
+// Block screen config dialog (Android-only)
+class _BlockScreenConfigDialog extends StatefulWidget {
+  const _BlockScreenConfigDialog({required this.blocker, this.initial});
   final AppBlocker blocker;
-  final OverlayConfig? initial;
+  final BlockScreenConfig? initial;
 
   @override
-  State<_OverlayConfigDialog> createState() => _OverlayConfigDialogState();
+  State<_BlockScreenConfigDialog> createState() =>
+      _BlockScreenConfigDialogState();
 }
 
-class _OverlayConfigDialogState extends State<_OverlayConfigDialog> {
+class _BlockScreenConfigDialogState extends State<_BlockScreenConfigDialog> {
   late final TextEditingController _title;
   late final TextEditingController _subtitle;
   late final TextEditingController _message;
@@ -571,7 +574,7 @@ class _OverlayConfigDialogState extends State<_OverlayConfigDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Overlay Config'),
+      title: const Text('Block Screen Config'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -596,17 +599,17 @@ class _OverlayConfigDialogState extends State<_OverlayConfigDialog> {
         ),
         FilledButton(
           onPressed: () async {
-            final config = OverlayConfig(
+            final config = BlockScreenConfig(
               title: _title.text,
               subtitle: _subtitle.text,
               message: _message.text,
             );
             try {
-              await widget.blocker.setOverlayConfig(config);
+              await widget.blocker.setBlockScreenConfig(config);
               if (context.mounted) {
                 Navigator.pop(context, config);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Overlay config saved')),
+                  const SnackBar(content: Text('Block screen config saved')),
                 );
               }
             } catch (e) {

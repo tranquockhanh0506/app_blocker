@@ -52,7 +52,7 @@ AppBlocker (Dart singleton)
 | `app_blocker_platform_interface.dart` | Abstract interface all platform implementations must satisfy |
 | `app_blocker_method_channel.dart` | Sends calls over `MethodChannel`; receives events from `EventChannel` |
 | `constants.dart` | Channel names and method name strings |
-| `models/` | `BlockSchedule`, `AppInfo`, `BlockEvent`, `BlockStatus`, `BlockProfile`, `OverlayConfig`, `BlockerCapabilities` |
+| `models/` | `BlockSchedule`, `AppInfo`, `BlockEvent`, `BlockStatus`, `BlockProfile`, `BlockScreenConfig`, `BlockerCapabilities` |
 
 ### Android Layer (`android/src/main/kotlin/com/khanhtq/app_blocker/`)
 
@@ -91,7 +91,7 @@ iOS managers are typed as `AnyObject?` due to `@available` version constraints.
 ## Key Patterns
 
 - **Singleton**: `AppBlocker.instance` — enforced in Dart; one instance per process.
-- **Platform capabilities**: Call `getCapabilities()` before using platform-specific features (e.g. `setOverlayConfig` is Android-only).
+- **Platform capabilities**: Call `getCapabilities()` before using platform-specific features (e.g. `setBlockScreenConfig` is Android-only).
 - **Profile/Schedule system**: Profiles group app lists with schedules; only one profile can be active at a time.
 - **Event streaming**: `AppBlocker.instance.onBlockEvent` is an `EventChannel` stream emitting `BlockEvent` objects (`blocked`, `unblocked`, `attemptedAccess`, `scheduleActivated`, `scheduleDeactivated`).
 

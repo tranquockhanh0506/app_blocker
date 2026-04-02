@@ -176,7 +176,7 @@ void main() {
     test('fromMap creates instance with all true', () {
       final map = <String, dynamic>{
         'canBlockApps': true,
-        'canShowOverlay': true,
+        'canCustomizeBlockScreen': true,
         'canUseSystemShield': true,
         'canSchedule': true,
         'canGetInstalledApps': true,
@@ -186,7 +186,7 @@ void main() {
       final caps = BlockerCapabilities.fromMap(map);
 
       expect(caps.canBlockApps, isTrue);
-      expect(caps.canShowOverlay, isTrue);
+      expect(caps.canCustomizeBlockScreen, isTrue);
       expect(caps.canUseSystemShield, isTrue);
       expect(caps.canSchedule, isTrue);
       expect(caps.canGetInstalledApps, isTrue);
@@ -199,7 +199,7 @@ void main() {
       final caps = BlockerCapabilities.fromMap(map);
 
       expect(caps.canBlockApps, isFalse);
-      expect(caps.canShowOverlay, isFalse);
+      expect(caps.canCustomizeBlockScreen, isFalse);
       expect(caps.canUseSystemShield, isFalse);
       expect(caps.canSchedule, isFalse);
       expect(caps.canGetInstalledApps, isFalse);
@@ -209,7 +209,7 @@ void main() {
     test('toString contains key fields', () {
       const caps = BlockerCapabilities(
         canBlockApps: true,
-        canShowOverlay: false,
+        canCustomizeBlockScreen: false,
         canUseSystemShield: true,
         canSchedule: false,
         canGetInstalledApps: true,
@@ -217,7 +217,7 @@ void main() {
       );
       final str = caps.toString();
       expect(str, contains('canBlockApps: true'));
-      expect(str, contains('canShowOverlay: false'));
+      expect(str, contains('canCustomizeBlockScreen: false'));
     });
   });
 
@@ -548,12 +548,12 @@ void main() {
   });
 
   // =========================================================================
-  // OverlayConfig
+  // BlockScreenConfig
   // =========================================================================
 
-  group('OverlayConfig', () {
+  group('BlockScreenConfig', () {
     test('toMap with all fields set', () {
-      const config = OverlayConfig(
+      const config = BlockScreenConfig(
         title: 'Blocked',
         subtitle: 'Focus Time',
         message: 'Stay focused!',
@@ -571,7 +571,7 @@ void main() {
     });
 
     test('toMap with null fields', () {
-      const config = OverlayConfig();
+      const config = BlockScreenConfig();
       final map = config.toMap();
 
       expect(map['title'], isNull);
@@ -582,7 +582,7 @@ void main() {
     });
 
     test('toString contains title and subtitle', () {
-      const config = OverlayConfig(title: 'T', subtitle: 'S');
+      const config = BlockScreenConfig(title: 'T', subtitle: 'S');
       final str = config.toString();
       expect(str, contains('T'));
       expect(str, contains('S'));

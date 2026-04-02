@@ -5,7 +5,7 @@
 
 A Flutter plugin to block apps on Android and iOS.
 
-- **Android:** AccessibilityService + overlay window to detect and block apps
+- **Android:** AccessibilityService + customizable block screen to detect and block apps
 - **iOS:** Screen Time API
   - **FamilyControls** — request user authorization to manage Screen Time
   - **ManagedSettings** — apply shield restrictions on selected apps (required for blocking specific apps, not needed for `blockAll()`)
@@ -27,8 +27,8 @@ A Flutter plugin to block apps on Android and iOS.
 - `unblockAll()` — Unblock all apps
 - `getBlockedApps()` — List currently blocked app identifiers
 - `getAppStatus(String)` — Get block status of a specific app
-- `setOverlayConfig(OverlayConfig)` — Customize the block overlay (Android only)
-- `getOverlayConfig()` — Get current overlay configuration (Android only)
+- `setBlockScreenConfig(BlockScreenConfig)` — Customize the block screen (Android only)
+- `getBlockScreenConfig()` — Get current block screen configuration (Android only)
 
 **Schedules (Android only)**
 - `addSchedule(BlockSchedule)` — Add a time-based blocking schedule
@@ -57,12 +57,12 @@ A Flutter plugin to block apps on Android and iOS.
 | Block / Unblock apps | ✅      | ✅  |
 | Block all apps       | ✅      | ✅  |
 | Get installed apps   | ✅      | -   |
-| Custom overlay       | ✅      | -   |
+| Custom block screen  | ✅      | -   |
 | Screen Time Shield   | -       | ✅  |
 | Schedules            | ✅      | -   |
 | Profiles             | ✅      | ✅  |
 | Block events stream  | ✅      | ✅  |
-| Boot persistence     | ✅      | -   |
+| Boot persistence     | ✅      | ✅  |
 
 ## Installation
 
@@ -146,18 +146,18 @@ await blocker.unblockAll();
 final blocked = await blocker.getBlockedApps();
 ```
 
-### Overlay Config (Android only)
+### Block Screen Config (Android only)
 
 ```dart
-await blocker.setOverlayConfig(
-  const OverlayConfig(
+await blocker.setBlockScreenConfig(
+  const BlockScreenConfig(
     title: 'Stay Focused!',
     subtitle: 'This app is blocked',
     message: 'Get back to work.',
     backgroundColor: Color(0xDD000000),
   ),
 );
-// iOS uses system Screen Time Shield automatically
+// iOS uses the system Screen Time Shield automatically
 ```
 
 ### Schedules (Android only)

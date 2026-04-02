@@ -69,7 +69,7 @@ class BlockerPreferences(context: Context) {
     }
 
     // ==================================================================
-    // overlayConfig — JSON string
+    // overlayConfig — JSON string (key kept as "overlay_config" for backwards compatibility)
     // ==================================================================
 
     var overlayConfig: String

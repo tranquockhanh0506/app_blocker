@@ -1,5 +1,5 @@
 name: app_blocker
-description: "Cross-platform app blocking plugin for Flutter. Block apps with overlay (Android) and Screen Time Shield (iOS). Supports scheduling, focus profiles, and real-time blocking events."
+description: "Cross-platform app blocking plugin for Flutter. Block apps with a custom block screen (Android) and Screen Time Shield (iOS). Supports scheduling, focus profiles, and real-time blocking events."
 version: 2.0.0
 homepage: https://github.com/tranquockhanh0506/app_blocker
 repository: https://github.com/tranquockhanh0506/app_blocker

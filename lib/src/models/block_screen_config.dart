@@ -1,11 +1,11 @@
 import 'dart:ui';
 
-/// Configuration for the Android overlay shown when a blocked app is opened.
+/// Configuration for the Android block screen shown when a blocked app is opened.
 ///
 /// This has no effect on iOS, where the system shield is used instead.
-class OverlayConfig {
-  /// Creates an [OverlayConfig] instance.
-  const OverlayConfig({
+class BlockScreenConfig {
+  /// Creates an [BlockScreenConfig] instance.
+  const BlockScreenConfig({
     this.title,
     this.subtitle,
     this.message,
@@ -13,7 +13,7 @@ class OverlayConfig {
     this.iconAssetPath,
   });
 
-  /// The title text shown on the overlay.
+  /// The title text shown on the block screen.
   ///
   /// Defaults to "App Blocked" if not specified.
   final String? title;
@@ -21,22 +21,22 @@ class OverlayConfig {
   /// The subtitle text shown below the title.
   final String? subtitle;
 
-  /// Additional message text shown on the overlay.
+  /// Additional message text shown on the block screen.
   final String? message;
 
-  /// The background color of the overlay.
+  /// The background color of the block screen.
   ///
   /// Defaults to a dark semi-transparent color if not specified.
   final Color? backgroundColor;
 
-  /// Path to a custom icon asset to display on the overlay.
+  /// Path to a custom icon asset to display on the block screen.
   ///
   /// Should be a Flutter asset path (e.g., `assets/icons/lock.png`).
   final String? iconAssetPath;
 
-  /// Creates an [OverlayConfig] from a map returned by the platform.
-  factory OverlayConfig.fromMap(Map<String, dynamic> map) {
-    return OverlayConfig(
+  /// Creates an [BlockScreenConfig] from a map returned by the platform.
+  factory BlockScreenConfig.fromMap(Map<String, dynamic> map) {
+    return BlockScreenConfig(
       title: map['title'] as String?,
       subtitle: map['subtitle'] as String?,
       message: map['message'] as String?,
@@ -59,5 +59,5 @@ class OverlayConfig {
   }
 
   @override
-  String toString() => 'OverlayConfig(title: $title, subtitle: $subtitle)';
+  String toString() => 'BlockScreenConfig(title: $title, subtitle: $subtitle)';
 }

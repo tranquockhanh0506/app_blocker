@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.version          = '2.0.0'
   s.summary          = 'Cross-platform app blocking plugin for Flutter.'
   s.description      = <<-DESC
-Cross-platform app blocking plugin for Flutter. Block apps with overlay (Android)
+Cross-platform app blocking plugin for Flutter. Block apps with a custom block screen (Android)
 and Screen Time Shield (iOS). Supports scheduling, focus profiles, and events.
                        DESC
   s.homepage         = 'https://github.com/khanhtq/app_blocker'

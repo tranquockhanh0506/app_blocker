@@ -1,9 +1,9 @@
 /// The type of a block event.
 enum BlockEventType {
-  /// An app was blocked (overlay shown or shield applied).
+  /// An app was blocked (block screen shown or shield applied).
   blocked,
 
-  /// An app was unblocked (overlay hidden or shield removed).
+  /// An app was unblocked (block screen dismissed or shield removed).
   unblocked,
 
   /// A blocked app was attempted to be opened.

@@ -46,8 +46,8 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         private const val UNBLOCK_ALL = "unblockAll"
         private const val GET_BLOCKED_APPS = "getBlockedApps"
         private const val GET_APP_STATUS = "getAppStatus"
-        private const val SET_OVERLAY_CONFIG = "setOverlayConfig"
-        private const val GET_OVERLAY_CONFIG = "getOverlayConfig"
+        private const val SET_BLOCK_SCREEN_CONFIG = "setBlockScreenConfig"
+        private const val GET_BLOCK_SCREEN_CONFIG = "getBlockScreenConfig"
         private const val ADD_SCHEDULE = "addSchedule"
         private const val UPDATE_SCHEDULE = "updateSchedule"
         private const val REMOVE_SCHEDULE = "removeSchedule"
@@ -147,7 +147,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 result.success(
                     mapOf(
                         "canBlockApps" to true,
-                        "canShowOverlay" to true,
+                        "canCustomizeBlockScreen" to true,
                         "canUseSystemShield" to false,
                         "canSchedule" to true,
                         "canGetInstalledApps" to true,
@@ -247,9 +247,9 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 result.success(status)
             }
 
-            // -- Overlay --
+            // -- Block Screen Config --
 
-            SET_OVERLAY_CONFIG -> {
+            SET_BLOCK_SCREEN_CONFIG -> {
                 val configMap = buildMap<String, Any?> {
                     put("title", call.argument<String>("title"))
                     put("subtitle", call.argument<String>("subtitle"))
@@ -261,7 +261,7 @@ class AppBlockerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 result.success(null)
             }
 
-            GET_OVERLAY_CONFIG -> {
+            GET_BLOCK_SCREEN_CONFIG -> {
                 val json = preferences.overlayConfig
                 if (json == "{}") {
                     result.success(null)

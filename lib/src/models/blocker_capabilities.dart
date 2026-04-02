@@ -3,7 +3,7 @@ class BlockerCapabilities {
   /// Creates a [BlockerCapabilities] instance.
   const BlockerCapabilities({
     required this.canBlockApps,
-    required this.canShowOverlay,
+    required this.canCustomizeBlockScreen,
     required this.canUseSystemShield,
     required this.canSchedule,
     required this.canGetInstalledApps,
@@ -13,10 +13,10 @@ class BlockerCapabilities {
   /// Whether the platform supports app blocking.
   final bool canBlockApps;
 
-  /// Whether the platform supports showing an overlay on blocked apps.
+  /// Whether the platform supports customizing the block screen shown when a blocked app is opened.
   ///
   /// `true` on Android, `false` on iOS.
-  final bool canShowOverlay;
+  final bool canCustomizeBlockScreen;
 
   /// Whether the platform uses system-level shields (Screen Time API).
   ///
@@ -42,7 +42,7 @@ class BlockerCapabilities {
   factory BlockerCapabilities.fromMap(Map<String, dynamic> map) {
     return BlockerCapabilities(
       canBlockApps: map['canBlockApps'] as bool? ?? false,
-      canShowOverlay: map['canShowOverlay'] as bool? ?? false,
+      canCustomizeBlockScreen: map['canCustomizeBlockScreen'] as bool? ?? false,
       canUseSystemShield: map['canUseSystemShield'] as bool? ?? false,
       canSchedule: map['canSchedule'] as bool? ?? false,
       canGetInstalledApps: map['canGetInstalledApps'] as bool? ?? false,
@@ -52,6 +52,6 @@ class BlockerCapabilities {
 
   @override
   String toString() =>
-      'BlockerCapabilities(canBlockApps: $canBlockApps, canShowOverlay: $canShowOverlay, '
+      'BlockerCapabilities(canBlockApps: $canBlockApps, canCustomizeBlockScreen: $canCustomizeBlockScreen, '
       'canUseSystemShield: $canUseSystemShield, canSchedule: $canSchedule)';
 }
