@@ -2,12 +2,12 @@
 <!--
   Accessibility service configuration for AppBlockerAccessibilityService.
 
-  We listen to TYPE_WINDOW_STATE_CHANGED and TYPE_WINDOW_CONTENT_CHANGED for
+  We listen to TYPE_WINDOW_STATE_CHANGED for
   robust foreground app detection. canRetrieveWindowContent is false because we
   only need the package name from each event, not the full window hierarchy.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault"
     android:canRetrieveWindowContent="false" />

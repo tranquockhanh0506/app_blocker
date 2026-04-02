@@ -44,6 +44,8 @@ class BlockingServiceManager(private val context: Context) {
                 )
             )
         }
+
+        AppBlockerAccessibilityService.instance?.checkCurrentForegroundApp()
     }
 
     /**
@@ -53,6 +55,7 @@ class BlockingServiceManager(private val context: Context) {
     fun startBlockingAll() {
         preferences.setIsBlocking(true)
         preferences.setBlockAll(true)
+        AppBlockerAccessibilityService.instance?.checkCurrentForegroundApp()
     }
 
     /**

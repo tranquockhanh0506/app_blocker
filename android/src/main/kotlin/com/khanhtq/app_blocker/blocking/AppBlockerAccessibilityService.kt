@@ -37,8 +37,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
         /** Events we care about — window transitions and content changes. */
         private const val TARGET_EVENTS =
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
-                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
 
         /** System packages we never want to block. */
         private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
@@ -48,6 +47,15 @@ class AppBlockerAccessibilityService : AccessibilityService() {
          * Gives the home screen time to settle so the activity appears cleanly.
          */
         private const val BLOCK_LAUNCH_DELAY_MS = 150L
+
+        /**
+         * The running service instance, or null if the service is not connected.
+         * Used by [BlockingServiceManager] to trigger an immediate block check
+         * when blocking state changes (e.g. a schedule activates).
+         */
+        @Volatile
+        var instance: AppBlockerAccessibilityService? = null
+            private set
     }
 
     private lateinit var preferences: BlockerPreferences
@@ -71,6 +79,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         preferences = BlockerPreferences(this)
+        instance = this
     }
 
     override fun onInterrupt() {
@@ -78,8 +87,26 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        instance = null
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
+    }
+
+    // ------------------------------------------------------------------
+    // Immediate block check (called when blocking state changes externally)
+    // ------------------------------------------------------------------
+
+    /**
+     * Re-evaluates [lastPackage] against the current blocking state.
+     * Called by [BlockingServiceManager] after blocking is activated so that
+     * an app already in the foreground is blocked immediately without waiting
+     * for the next accessibility event (e.g. when a schedule starts).
+     */
+    fun checkCurrentForegroundApp() {
+        val pkg = lastPackage
+        if (pkg.isNotEmpty()) {
+            checkAndBlock(pkg)
+        }
     }
 
     // ------------------------------------------------------------------
