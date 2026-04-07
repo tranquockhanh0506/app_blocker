@@ -127,7 +127,7 @@ await blocker.setBlockScreenConfig(
 ### Schedules (Android only)
 
 ```dart
-// Add a schedule
+// Recurring schedule (repeats on specified weekdays)
 await blocker.addSchedule(BlockSchedule(
   id: 'work-hours',
   name: 'Work Hours',
@@ -137,8 +137,17 @@ await blocker.addSchedule(BlockSchedule(
   endTime: const TimeOfDay(hour: 17, minute: 0),
 ));
 
+// One-time schedule (runs once on specific date, auto-disables after)
+// await blocker.addSchedule(BlockSchedule(
+//   id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+//   name: 'Short Break',
+//   appIdentifiers: ['com.instagram.android'],
+//   startTime: const TimeOfDay(hour: 14, minute: 0),
+//   endTime: const TimeOfDay(hour: 14, minute: 15),
+//   scheduleDate: DateTime.now(), // Today only
+// ));
+
 await blocker.enableSchedule('work-hours');
-await blocker.disableSchedule('work-hours');
 await blocker.removeSchedule('work-hours');
 final schedules = await blocker.getSchedules();
 ```

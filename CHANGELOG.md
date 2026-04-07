@@ -1,3 +1,8 @@
+## 2.1.0
+
+- **One-time schedules:** Added optional `scheduleDate` parameter to `BlockSchedule` for non-recurring schedules. Automatically disables after completion. Fully backward compatible with existing recurring schedules.
+- Improved validation for recurring schedules: schedules with an empty `weekdays` now throw an ArgumentError instead of silently doing nothing.
+
 ## 2.0.7
 
 - Remove badges from README

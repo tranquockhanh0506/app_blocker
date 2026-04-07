@@ -30,19 +30,26 @@ data class ScheduleData(
     @SerializedName("endHour") val endHour: Int,
     @SerializedName("endMinute") val endMinute: Int,
     @SerializedName("enabled") val enabled: Boolean,
+    /**
+     * Specific date for one-time schedules (milliseconds since epoch).
+     * When null, this is a recurring schedule that repeats on [weekdays].
+     * When set, this is a one-time schedule that runs only on this date.
+     */
+    @SerializedName("scheduleDate") val scheduleDate: Long? = null,
 ) {
     /** Converts this instance to the map format sent over the Flutter channel. */
-    fun toMap(): Map<String, Any?> = mapOf(
-        "id" to id,
-        "name" to name,
-        "appIdentifiers" to appIdentifiers,
-        "weekdays" to weekdays,
-        "startHour" to startHour,
-        "startMinute" to startMinute,
-        "endHour" to endHour,
-        "endMinute" to endMinute,
-        "enabled" to enabled,
-    )
+    fun toMap(): Map<String, Any?> = buildMap {
+        put("id", id)
+        put("name", name)
+        put("appIdentifiers", appIdentifiers)
+        put("weekdays", weekdays)
+        put("startHour", startHour)
+        put("startMinute", startMinute)
+        put("endHour", endHour)
+        put("endMinute", endMinute)
+        put("enabled", enabled)
+        scheduleDate?.let { put("scheduleDate", it) }
+    }
 
     companion object {
         /**
@@ -63,12 +70,16 @@ data class ScheduleData(
                 ?.mapNotNull { (it as? Number)?.toInt() }
                 ?: emptyList()
 
-            // Validate weekdays are in ISO 8601 range (1 = Monday ... 7 = Sunday)
-            for (day in weekdays) {
-                if (day !in 1..7) {
-                    throw IllegalArgumentException(
-                        "Weekday must be an ISO 8601 value between 1 (Monday) and 7 (Sunday), got: $day"
-                    )
+            val scheduleDate = (data["scheduleDate"] as? Number)?.toLong()
+
+            // Only validate weekdays for recurring schedules (when scheduleDate is null)
+            if (scheduleDate == null) {
+                for (day in weekdays) {
+                    if (day !in 1..7) {
+                        throw IllegalArgumentException(
+                            "Weekday must be an ISO 8601 value between 1 (Monday) and 7 (Sunday), got: $day"
+                        )
+                    }
                 }
             }
 
@@ -82,6 +93,7 @@ data class ScheduleData(
                 endHour = (data["endHour"] as Number).toInt(),
                 endMinute = (data["endMinute"] as Number).toInt(),
                 enabled = data["enabled"] as? Boolean ?: true,
+                scheduleDate = scheduleDate,
             )
         }
     }
@@ -124,6 +136,7 @@ class ScheduleManager(private val context: Context) {
         // schedule+weekday+start/end combination.
         private const val REQUEST_CODE_START_BASE = 10_000
         private const val REQUEST_CODE_END_BASE = 20_000
+        private const val REQUEST_CODE_ONETIME_BASE = 30_000 // one-time schedules (2 codes per id: start + end)
         private const val MAX_WEEKDAYS = 7
     }
 
@@ -183,6 +196,9 @@ class ScheduleManager(private val context: Context) {
     /** Returns all schedules as wire-format maps. */
     fun getSchedules(): List<Map<String, Any?>> = loadSchedules().map { it.toMap() }
 
+    /** Returns the schedule with [id], or null if not found. */
+    fun findSchedule(id: String): ScheduleData? = loadSchedules().find { it.id == id }
+
     /** Returns the union of app identifiers from all enabled schedules that are currently within their active window. */
     fun getActivelyBlockedApps(): Set<String> =
         loadSchedules()
@@ -211,10 +227,29 @@ class ScheduleManager(private val context: Context) {
 
     /** Re-registers alarms for all enabled schedules and activates any that are currently active. Called on device boot and plugin attach. */
     fun rescheduleAll() {
-        for (schedule in loadSchedules()) {
+        val schedules = loadSchedules()
+        val expiredIds = mutableSetOf<String>()
+
+        for (schedule in schedules) {
             if (!schedule.enabled) continue
+
+            if (isOneTimeSchedule(schedule)) {
+                val endTime = nextOneTimeAlarmTimeMillis(schedule.scheduleDate!!, schedule.endHour, schedule.endMinute)
+                if (endTime == 0L) {
+                    expiredIds.add(schedule.id)
+                    continue
+                }
+                // endTime > 0: schedule is still valid (end is in the future).
+                // If start is also in the past we're mid-window; isCurrentlyActive handles activation below.
+            }
+
             registerAlarms(schedule)
             if (isCurrentlyActive(schedule)) blockingServiceManager.startBlocking(schedule.appIdentifiers)
+        }
+
+        if (expiredIds.isNotEmpty()) {
+            saveSchedules(schedules.filterNot { it.id in expiredIds })
+            for (id in expiredIds) cancelAlarms(id)
         }
     }
 
@@ -222,7 +257,18 @@ class ScheduleManager(private val context: Context) {
     // Alarm management
     // ------------------------------------------------------------------
 
+    /** Returns true if [schedule] is a one-time schedule (has a specific date). */
+    private fun isOneTimeSchedule(schedule: ScheduleData): Boolean = schedule.scheduleDate != null
+
     private fun registerAlarms(schedule: ScheduleData) {
+        if (isOneTimeSchedule(schedule)) {
+            registerOneTimeAlarms(schedule)
+        } else {
+            registerRecurringAlarms(schedule)
+        }
+    }
+
+    private fun registerRecurringAlarms(schedule: ScheduleData) {
         for (weekday in schedule.weekdays) {
             val startMillis = nextAlarmTimeMillis(weekday, schedule.startHour, schedule.startMinute)
             val endMillis = nextAlarmTimeMillis(weekday, schedule.endHour, schedule.endMinute)
@@ -244,11 +290,41 @@ class ScheduleManager(private val context: Context) {
         }
     }
 
+    private fun registerOneTimeAlarms(schedule: ScheduleData) {
+        val scheduleDate = schedule.scheduleDate ?: return
+        
+        val startMillis = nextOneTimeAlarmTimeMillis(scheduleDate, schedule.startHour, schedule.startMinute)
+        val endMillis = nextOneTimeAlarmTimeMillis(scheduleDate, schedule.endHour, schedule.endMinute)
+        
+        // Only schedule alarms if they are in the future
+        if (startMillis > 0) {
+            scheduleExactAlarm(
+                action = ACTION_SCHEDULE_START,
+                scheduleId = schedule.id,
+                appIdentifiers = schedule.appIdentifiers,
+                requestCode = oneTimeRequestCode(schedule.id, isStart = true),
+                triggerAtMillis = startMillis,
+            )
+        }
+        
+        if (endMillis > 0) {
+            scheduleExactAlarm(
+                action = ACTION_SCHEDULE_END,
+                scheduleId = schedule.id,
+                appIdentifiers = schedule.appIdentifiers,
+                requestCode = oneTimeRequestCode(schedule.id, isStart = false),
+                triggerAtMillis = endMillis,
+            )
+        }
+    }
+
     private fun cancelAlarms(scheduleId: String) {
         for (weekday in 1..MAX_WEEKDAYS) {
             cancelAlarm(ACTION_SCHEDULE_START, scheduleId, emptyList(), requestCode(scheduleId, weekday, isStart = true))
             cancelAlarm(ACTION_SCHEDULE_END, scheduleId, emptyList(), requestCode(scheduleId, weekday, isStart = false))
         }
+        cancelAlarm(ACTION_SCHEDULE_START, scheduleId, emptyList(), oneTimeRequestCode(scheduleId, isStart = true))
+        cancelAlarm(ACTION_SCHEDULE_END, scheduleId, emptyList(), oneTimeRequestCode(scheduleId, isStart = false))
     }
 
     private fun scheduleExactAlarm(
@@ -295,15 +371,28 @@ class ScheduleManager(private val context: Context) {
      */
     private fun isCurrentlyActive(schedule: ScheduleData): Boolean {
         val now = Calendar.getInstance()
-        val isoToCalendar = mapOf(1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 to 6, 6 to 7, 7 to 1)
-        val todayDow = now.get(Calendar.DAY_OF_WEEK)
-
         val nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
         val startMinutes = schedule.startHour * 60 + schedule.startMinute
         val endMinutes = schedule.endHour * 60 + schedule.endMinute
 
-        return schedule.weekdays.any { weekday ->
-            isoToCalendar[weekday] == todayDow && isTimeInRange(nowMinutes, startMinutes, endMinutes)
+        return if (isOneTimeSchedule(schedule)) {
+            // Check if today matches the schedule date
+            val scheduleDate = Calendar.getInstance().apply {
+                timeInMillis = schedule.scheduleDate!!
+            }
+            
+            val sameDay = now.get(Calendar.YEAR) == scheduleDate.get(Calendar.YEAR) &&
+                          now.get(Calendar.DAY_OF_YEAR) == scheduleDate.get(Calendar.DAY_OF_YEAR)
+            
+            sameDay && isTimeInRange(nowMinutes, startMinutes, endMinutes)
+        } else {
+            // Recurring schedule: check weekdays
+            val isoToCalendar = mapOf(1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 to 6, 6 to 7, 7 to 1)
+            val todayDow = now.get(Calendar.DAY_OF_WEEK)
+            
+            schedule.weekdays.any { weekday ->
+                isoToCalendar[weekday] == todayDow && isTimeInRange(nowMinutes, startMinutes, endMinutes)
+            }
         }
     }
 
@@ -351,6 +440,23 @@ class ScheduleManager(private val context: Context) {
     }
 
     /**
+     * Calculates the alarm time for a one-time schedule on a specific date.
+     * Returns 0 if the calculated time is in the past.
+     */
+    private fun nextOneTimeAlarmTimeMillis(scheduleDateMillis: Long, hour: Int, minute: Int): Long {
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = scheduleDateMillis
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        
+        val alarmTime = cal.timeInMillis
+        return if (alarmTime > System.currentTimeMillis()) alarmTime else 0
+    }
+
+    /**
      * Generates a unique [PendingIntent] request code for a schedule+weekday+start/end
      * combination. Uses the lower 15 bits of the schedule id's hash to avoid
      * collisions with other intents.
@@ -358,6 +464,14 @@ class ScheduleManager(private val context: Context) {
     private fun requestCode(scheduleId: String, weekday: Int, isStart: Boolean): Int {
         val base = if (isStart) REQUEST_CODE_START_BASE else REQUEST_CODE_END_BASE
         return base + (scheduleId.hashCode() and 0x7FFF) * MAX_WEEKDAYS * 2 + weekday
+    }
+
+    /**
+     * Generates a unique request code for one-time schedules.
+     */
+    private fun oneTimeRequestCode(scheduleId: String, isStart: Boolean): Int {
+        val offset = if (isStart) 0 else 1
+        return REQUEST_CODE_ONETIME_BASE + (scheduleId.hashCode() and 0x7FFF) * 2 + offset
     }
 
     private fun loadSchedules(): List<ScheduleData> {
