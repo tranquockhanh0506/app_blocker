@@ -1,3 +1,7 @@
+## 2.0.5
+
+- Update LICENSE copyright year to 2024-2026
+
 ## 2.0.4
 
 - Fix LICENSE badge link in README (main → master)
