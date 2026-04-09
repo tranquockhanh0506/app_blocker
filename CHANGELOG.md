@@ -1,3 +1,7 @@
+## 2.0.7
+
+- Remove badges from README
+
 ## 2.0.6
 
 - Use `^2.0.0` in README installation for forward-compatible versioning
