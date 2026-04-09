@@ -4,7 +4,7 @@
 [![pub points](https://img.shields.io/pub/points/app_blocker)](https://pub.dev/packages/app_blocker/score)
 [![popularity](https://img.shields.io/pub/popularity/app_blocker)](https://pub.dev/packages/app_blocker/score)
 [![likes](https://img.shields.io/pub/likes/app_blocker)](https://pub.dev/packages/app_blocker/score)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/tranquockhanh0506/app_blocker/blob/main/LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/tranquockhanh0506/app_blocker/blob/master/LICENSE)
 
 A cross-platform Flutter plugin for **app blocking**, **parental controls**, and **digital wellbeing**. Block apps with a customizable block screen on Android and Screen Time Shield on iOS. Supports time-based scheduling, focus profiles, and real-time block event streams.
 

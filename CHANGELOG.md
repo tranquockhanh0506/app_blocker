@@ -1,3 +1,7 @@
+## 2.0.4
+
+- Fix LICENSE badge link in README (main → master)
+
 ## 2.0.3
 
 - Update installation version in README
