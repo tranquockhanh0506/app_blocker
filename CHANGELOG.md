@@ -1,3 +1,7 @@
+## 2.0.3
+
+- Update installation version in README
+
 ## 2.0.2
 
 - Add pub.dev topics for better discoverability
