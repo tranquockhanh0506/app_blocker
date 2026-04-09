@@ -11,6 +11,11 @@ void main() => runApp(const AppBlockerExampleApp());
 // App shell
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Example app demonstrating the app_blocker plugin.
+///
+/// This app shows how to use the app_blocker package to block and unblock
+/// apps on Android and iOS, manage time-based schedules, create focus
+/// profiles, and listen to real-time block events.
 class AppBlockerExampleApp extends StatelessWidget {
   const AppBlockerExampleApp({super.key});
 

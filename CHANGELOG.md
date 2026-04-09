@@ -1,3 +1,11 @@
+## 2.0.2
+
+- Add pub.dev topics for better discoverability
+- Improve README structure with Features, Getting Started, and Additional Information sections
+- Add pub points, popularity, and likes badges
+- Add dartdoc comments to all public constants
+- Enable `public_member_api_docs` lint rule
+
 ## 2.0.1
 
 - Shorten package description to meet pub.dev guidelines

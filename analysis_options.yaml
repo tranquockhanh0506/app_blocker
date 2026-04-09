@@ -10,3 +10,4 @@ linter:
     sort_child_properties_last: true
     unawaited_futures: true
     unnecessary_lambdas: true
+    public_member_api_docs: true

@@ -1,79 +1,36 @@
 # app_blocker
 
 [![pub package](https://img.shields.io/pub/v/app_blocker.svg)](https://pub.dev/packages/app_blocker)
+[![pub points](https://img.shields.io/pub/points/app_blocker)](https://pub.dev/packages/app_blocker/score)
+[![popularity](https://img.shields.io/pub/popularity/app_blocker)](https://pub.dev/packages/app_blocker/score)
+[![likes](https://img.shields.io/pub/likes/app_blocker)](https://pub.dev/packages/app_blocker/score)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/tranquockhanh0506/app_blocker/blob/main/LICENSE)
 
-A Flutter plugin to block apps on Android and iOS.
+A cross-platform Flutter plugin for **app blocking**, **parental controls**, and **digital wellbeing**. Block apps with a customizable block screen on Android and Screen Time Shield on iOS. Supports time-based scheduling, focus profiles, and real-time block event streams.
 
-- **Android:** AccessibilityService + customizable block screen to detect and block apps
-- **iOS:** Screen Time API
-  - **FamilyControls** — request user authorization to manage Screen Time
-  - **ManagedSettings** — apply shield restrictions on selected apps (required for blocking specific apps, not needed for `blockAll()`)
+## Features
 
-## Supported Functions
+- **Block & unblock apps** — Block specific apps or all apps at once on both Android and iOS
+- **Custom block screen** (Android) — Fully customizable block screen with title, subtitle, message, background color, and icon
+- **Screen Time Shield** (iOS) — Native iOS Screen Time integration via FamilyControls and ManagedSettings
+- **Time-based scheduling** (Android) — Schedule app blocking by weekday and time range, with boot persistence
+- **Focus profiles** — Group apps into reusable profiles (e.g., "Work Mode", "Sleep Mode") for quick activation
+- **Real-time events** — Stream of block/unblock/schedule events for monitoring and analytics
+- **Permission management** — Simple API for checking and requesting platform permissions
+- **Boot persistence** — Blocking rules and schedules survive device restarts
 
-**Permissions & capabilities**
-- `checkPermission()` — Check if required permissions are granted
-- `requestPermission()` — Request permissions from user
-- `getCapabilities()` — Check which features are available on the current platform
+## Getting Started
 
-**App discovery**
-- `getApps()` — List installed apps (Android) or show FamilyActivityPicker (iOS)
+### Installation
 
-**Blocking**
-- `blockApps(List<String>)` — Block specific apps
-- `blockAll()` — Block all apps
-- `unblockApps(List<String>)` — Unblock specific apps
-- `unblockAll()` — Unblock all apps
-- `getBlockedApps()` — List currently blocked app identifiers
-- `getAppStatus(String)` — Get block status of a specific app
-- `setBlockScreenConfig(BlockScreenConfig)` — Customize the block screen (Android only)
-- `getBlockScreenConfig()` — Get current block screen configuration (Android only)
-
-**Schedules (Android only)**
-- `addSchedule(BlockSchedule)` — Add a time-based blocking schedule
-- `updateSchedule(BlockSchedule)` — Update an existing schedule
-- `removeSchedule(String)` — Remove a schedule
-- `getSchedules()` — List all schedules
-- `enableSchedule(String)` — Enable a schedule
-- `disableSchedule(String)` — Disable a schedule without removing it
-
-**Profiles**
-- `createProfile(BlockProfile)` — Create a profile grouping apps to block together
-- `updateProfile(BlockProfile)` — Update an existing profile
-- `deleteProfile(String)` — Delete a profile
-- `getProfiles()` — List all profiles
-- `activateProfile(String)` — Activate a profile (blocks its apps)
-- `deactivateProfile(String)` — Deactivate a profile
-- `getActiveProfile()` — Get the currently active profile
-
-**Events**
-- `onBlockEvent` — Stream of block/unblock/schedule events
-
-## Platform Support
-
-| Feature              | Android | iOS |
-|----------------------|---------|-----|
-| Block / Unblock apps | ✅      | ✅  |
-| Block all apps       | ✅      | ✅  |
-| Get installed apps   | ✅      | -   |
-| Custom block screen  | ✅      | -   |
-| Screen Time Shield   | -       | ✅  |
-| Schedules            | ✅      | -   |
-| Profiles             | ✅      | ✅  |
-| Block events stream  | ✅      | ✅  |
-| Boot persistence     | ✅      | ✅  |
-
-## Installation
+Add `app_blocker` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
   app_blocker: ^2.0.0
 ```
 
-## Setup
-
-### Android
+### Android Setup
 
 **Minimum SDK:** 24 (Android 7.0)
 
@@ -87,7 +44,7 @@ During runtime, by calling `requestPermission()`, the user will be prompted to g
 - SCHEDULE_EXACT_ALARM (if not auto-granted)
 - Accessibility Service permission (opens system settings)
 
-### iOS
+### iOS Setup
 
 **Minimum iOS:** 16.0
 
@@ -99,13 +56,26 @@ During runtime, by calling `requestPermission()`, the user will be prompted to g
 platform :ios, '16.0'
 ```
 
-## Usage
+### Quick Start
 
 ```dart
 import 'package:app_blocker/app_blocker.dart';
 
 final blocker = AppBlocker.instance;
+
+// 1. Request permission
+await blocker.requestPermission();
+
+// 2. Block apps
+await blocker.blockAll();
+
+// 3. Listen to events
+blocker.onBlockEvent.listen((event) {
+  print('${event.type}: ${event.packageName}');
+});
 ```
+
+## Usage
 
 ### Permission
 
@@ -216,10 +186,74 @@ blocker.onBlockEvent.listen((event) {
 final caps = await blocker.getCapabilities();
 ```
 
+## Supported Functions
+
+**Permissions & capabilities**
+- `checkPermission()` — Check if required permissions are granted
+- `requestPermission()` — Request permissions from user
+- `getCapabilities()` — Check which features are available on the current platform
+
+**App discovery**
+- `getApps()` — List installed apps (Android) or show FamilyActivityPicker (iOS)
+
+**Blocking**
+- `blockApps(List<String>)` — Block specific apps
+- `blockAll()` — Block all apps
+- `unblockApps(List<String>)` — Unblock specific apps
+- `unblockAll()` — Unblock all apps
+- `getBlockedApps()` — List currently blocked app identifiers
+- `getAppStatus(String)` — Get block status of a specific app
+- `setBlockScreenConfig(BlockScreenConfig)` — Customize the block screen (Android only)
+- `getBlockScreenConfig()` — Get current block screen configuration (Android only)
+
+**Schedules (Android only)**
+- `addSchedule(BlockSchedule)` — Add a time-based blocking schedule
+- `updateSchedule(BlockSchedule)` — Update an existing schedule
+- `removeSchedule(String)` — Remove a schedule
+- `getSchedules()` — List all schedules
+- `enableSchedule(String)` — Enable a schedule
+- `disableSchedule(String)` — Disable a schedule without removing it
+
+**Profiles**
+- `createProfile(BlockProfile)` — Create a profile grouping apps to block together
+- `updateProfile(BlockProfile)` — Update an existing profile
+- `deleteProfile(String)` — Delete a profile
+- `getProfiles()` — List all profiles
+- `activateProfile(String)` — Activate a profile (blocks its apps)
+- `deactivateProfile(String)` — Deactivate a profile
+- `getActiveProfile()` — Get the currently active profile
+
+**Events**
+- `onBlockEvent` — Stream of block/unblock/schedule events
+
+## Platform Support
+
+| Feature              | Android | iOS |
+|----------------------|---------|-----|
+| Block / Unblock apps | ✅      | ✅  |
+| Block all apps       | ✅      | ✅  |
+| Get installed apps   | ✅      | -   |
+| Custom block screen  | ✅      | -   |
+| Screen Time Shield   | -       | ✅  |
+| Schedules            | ✅      | -   |
+| Profiles             | ✅      | ✅  |
+| Block events stream  | ✅      | ✅  |
+| Boot persistence     | ✅      | ✅  |
+
 ## Example
 
-See the [example app](https://github.com/tranquockhanh0506/app_blocker/tree/master/example) for a complete working demo.
+See the [example app](https://github.com/tranquockhanh0506/app_blocker/tree/master/example) for a complete working demo with tabs for blocking, schedules, profiles, and event monitoring.
 
-## License
+## Additional Information
+
+### Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request on [GitHub](https://github.com/tranquockhanh0506/app_blocker).
+
+### Filing Issues
+
+If you encounter a bug or have a feature request, please file an issue on the [issue tracker](https://github.com/tranquockhanh0506/app_blocker/issues).
+
+### License
 
 MIT — see [LICENSE](LICENSE).
