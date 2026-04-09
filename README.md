@@ -27,7 +27,7 @@ Add `app_blocker` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  app_blocker: ^2.0.2
+  app_blocker: ^2.0.0
 ```
 
 ### Android Setup

@@ -1,3 +1,7 @@
+## 2.0.6
+
+- Use `^2.0.0` in README installation for forward-compatible versioning
+
 ## 2.0.5
 
 - Update LICENSE copyright year to 2024-2026
