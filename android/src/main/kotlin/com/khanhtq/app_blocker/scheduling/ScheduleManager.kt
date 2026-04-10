@@ -136,7 +136,7 @@ class ScheduleManager(private val context: Context) {
         // schedule+weekday+start/end combination.
         private const val REQUEST_CODE_START_BASE = 10_000
         private const val REQUEST_CODE_END_BASE = 20_000
-        private const val REQUEST_CODE_ONETIME_BASE = 30_000 // one-time schedules (2 codes per id: start + end)
+        private const val REQUEST_CODE_ONETIME_BASE = 500_000 // keep one-time range disjoint from recurring ranges
         private const val MAX_WEEKDAYS = 7
     }
 

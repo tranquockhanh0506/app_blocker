@@ -148,6 +148,7 @@ await blocker.addSchedule(BlockSchedule(
 // ));
 
 await blocker.enableSchedule('work-hours');
+await blocker.disableSchedule('work-hours');
 await blocker.removeSchedule('work-hours');
 final schedules = await blocker.getSchedules();
 ```
