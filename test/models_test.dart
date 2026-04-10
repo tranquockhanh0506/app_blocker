@@ -255,7 +255,7 @@ void main() {
         'id': 's1',
         'name': 'Test',
         'appIdentifiers': <String>[],
-        'weekdays': <int>[],
+        'weekdays': <int>[1],
         'startHour': 0,
         'startMinute': 0,
         'endHour': 0,
@@ -321,7 +321,7 @@ void main() {
         id: 's1',
         name: 'A',
         appIdentifiers: [],
-        weekdays: [],
+        weekdays: [1],
         startTime: const TimeOfDay(hour: 0, minute: 0),
         endTime: const TimeOfDay(hour: 0, minute: 0),
       );
@@ -337,7 +337,7 @@ void main() {
         id: 's2',
         name: 'A',
         appIdentifiers: [],
-        weekdays: [],
+        weekdays: [1],
         startTime: const TimeOfDay(hour: 0, minute: 0),
         endTime: const TimeOfDay(hour: 0, minute: 0),
       );
@@ -351,7 +351,7 @@ void main() {
         id: 's1',
         name: 'A',
         appIdentifiers: [],
-        weekdays: [],
+        weekdays: [1],
         startTime: const TimeOfDay(hour: 0, minute: 0),
         endTime: const TimeOfDay(hour: 0, minute: 0),
       );
@@ -359,7 +359,7 @@ void main() {
         id: 's1',
         name: 'B',
         appIdentifiers: [],
-        weekdays: [],
+        weekdays: [1],
         startTime: const TimeOfDay(hour: 0, minute: 0),
         endTime: const TimeOfDay(hour: 0, minute: 0),
       );
@@ -449,13 +449,29 @@ void main() {
         id: 's1',
         name: 'Work',
         appIdentifiers: [],
-        weekdays: [],
+        weekdays: [1],
         startTime: const TimeOfDay(hour: 0, minute: 0),
         endTime: const TimeOfDay(hour: 0, minute: 0),
       );
       final str = schedule.toString();
       expect(str, contains('s1'));
       expect(str, contains('Work'));
+    });
+
+    // One-time schedule tests
+    test('recurring schedule: throws if no weekdays provided', () {
+      expect(
+        () => BlockSchedule(
+          id: 's1',
+          name: 'Recurring',
+          appIdentifiers: ['com.a'],
+          // weekdays defaults to []
+          startTime: const TimeOfDay(hour: 9, minute: 0),
+          endTime: const TimeOfDay(hour: 17, minute: 0),
+          // scheduleDate is null (recurring)
+        ),
+        throwsArgumentError,
+      );
     });
   });
 

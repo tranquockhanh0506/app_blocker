@@ -321,8 +321,8 @@ class _BlockingTabState extends State<_BlockingTab>
               if (!granted && Platform.isAndroid) ...[
                 const SizedBox(height: 8),
                 Text(
-                  'Android requires 3 permissions: Accessibility service, '
-                  'Display over other apps, and Alarms & reminders (exact alarm). '
+                  'Android requires 2 permissions: Accessibility service '
+                  'and Alarms & reminders (exact alarm). '
                   'Tap "Grant next" to open the relevant Settings screen. '
                   'Return here and tap again until all are granted.',
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -725,6 +725,9 @@ class _SchedulesTabState extends State<_SchedulesTab> {
   String _fmtTime(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
+  String _fmtDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -753,7 +756,7 @@ class _SchedulesTabState extends State<_SchedulesTab> {
                     title: Text(s.name),
                     subtitle: Text(
                       '${_fmtTime(s.startTime)} – ${_fmtTime(s.endTime)}'
-                      ' • ${_dayLabels(s.weekdays)}'
+                      ' • ${s.scheduleDate != null ? '[one-time] ${_fmtDate(s.scheduleDate!)}' : _dayLabels(s.weekdays)}'
                       '\n${s.appIdentifiers.length} app(s)',
                     ),
                     isThreeLine: true,
@@ -791,6 +794,8 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
   final Set<int> _weekdays = {1, 2, 3, 4, 5};
   TimeOfDay _start = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _end = const TimeOfDay(hour: 17, minute: 0);
+  bool _isOneTime = false;
+  DateTime _scheduleDate = DateTime.now();
 
   static const _dayNames = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
@@ -812,6 +817,21 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
 
   String _fmtTime(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _scheduleDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) {
+      setState(() => _scheduleDate = picked);
+    }
+  }
+
+  String _fmtDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -835,21 +855,36 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
               onChanged: (apps) => setState(() => _selectedApps = apps),
             ),
             const SizedBox(height: 16),
-            Text('Days', style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 4,
-              children: List.generate(7, (i) {
-                final day = i + 1;
-                return FilterChip(
-                  label: Text(_dayNames[i]),
-                  selected: _weekdays.contains(day),
-                  onSelected: (v) => setState(
-                    () => v ? _weekdays.add(day) : _weekdays.remove(day),
-                  ),
-                );
-              }),
+            CheckboxListTile(
+              title: const Text('One-time schedule'),
+              value: _isOneTime,
+              onChanged: (v) => setState(() => _isOneTime = v ?? false),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
             ),
+            const SizedBox(height: 8),
+            if (_isOneTime)
+              OutlinedButton(
+                onPressed: _pickDate,
+                child: Text('Date: ${_fmtDate(_scheduleDate)}'),
+              )
+            else ...[
+              Text('Days', style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 4,
+                children: List.generate(7, (i) {
+                  final day = i + 1;
+                  return FilterChip(
+                    label: Text(_dayNames[i]),
+                    selected: _weekdays.contains(day),
+                    onSelected: (v) => setState(
+                      () => v ? _weekdays.add(day) : _weekdays.remove(day),
+                    ),
+                  );
+                }),
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -879,7 +914,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
         FilledButton(
           onPressed: () {
             if (_name.text.trim().isEmpty ||
-                _weekdays.isEmpty ||
+                (!_isOneTime && _weekdays.isEmpty) ||
                 _selectedApps.isEmpty) {
               return;
             }
@@ -889,9 +924,10 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
                 id: DateTime.now().millisecondsSinceEpoch.toString(),
                 name: _name.text.trim(),
                 appIdentifiers: _selectedApps.toList(),
-                weekdays: _weekdays.toList()..sort(),
+                weekdays: _isOneTime ? [] : (_weekdays.toList()..sort()),
                 startTime: _start,
                 endTime: _end,
+                scheduleDate: _isOneTime ? _scheduleDate : null,
               ),
             );
           },

@@ -4,24 +4,38 @@ import 'package:flutter/material.dart';
 class BlockSchedule {
   /// Creates a [BlockSchedule] instance.
   ///
-  /// Throws [ArgumentError] if any weekday is outside the ISO 8601 range
-  /// (1–7).
+  /// For recurring schedules, provide [weekdays] and leave [scheduleDate] null.
+  /// For one-time schedules, set [scheduleDate] (weekdays defaults to empty).
+  ///
+  /// Throws [ArgumentError] if:
+  /// - Any weekday is outside the ISO 8601 range (1–7) for recurring schedules
+  /// - Recurring schedule (scheduleDate is null) has no weekdays
   BlockSchedule({
     required this.id,
     required this.name,
     required this.appIdentifiers,
-    required this.weekdays,
+    this.weekdays = const [],
     required this.startTime,
     required this.endTime,
     this.enabled = true,
+    this.scheduleDate,
   }) {
-    for (final day in weekdays) {
-      if (day < 1 || day > 7) {
+    if (scheduleDate == null) {
+      if (weekdays.isEmpty) {
         throw ArgumentError.value(
-          day,
+          weekdays,
           'weekdays',
-          'Weekday must be an ISO 8601 value between 1 (Monday) and 7 (Sunday).',
+          'Recurring schedules must have at least one weekday. For one-time schedules, set scheduleDate instead.',
         );
+      }
+      for (final day in weekdays) {
+        if (day < 1 || day > 7) {
+          throw ArgumentError.value(
+            day,
+            'weekdays',
+            'Weekday must be an ISO 8601 value between 1 (Monday) and 7 (Sunday).',
+          );
+        }
       }
     }
   }
@@ -38,10 +52,14 @@ class BlockSchedule {
   /// obtained from [FamilyActivityPicker].
   final List<String> appIdentifiers;
 
-  /// Days of the week when this schedule is active.
+  /// Days of the week when this schedule is active (for recurring schedules).
   ///
   /// Uses ISO 8601 numbering: 1 = Monday, 7 = Sunday.
   /// All values must be in the range 1–7.
+  ///
+  /// Defaults to empty. For recurring schedules (scheduleDate is null),
+  /// at least one weekday must be provided.
+  /// For one-time schedules (scheduleDate is set), this is ignored.
   final List<int> weekdays;
 
   /// The time of day when blocking starts.
@@ -53,6 +71,17 @@ class BlockSchedule {
   /// Whether this schedule is currently enabled.
   final bool enabled;
 
+  /// Specific date for one-time schedules.
+  ///
+  /// When null, this is a recurring schedule that repeats on [weekdays].
+  /// When set, this is a one-time schedule that runs only on this date,
+  /// and [weekdays] is ignored.
+  ///
+  /// One-time schedules automatically disable after their end time.
+  ///
+  /// Only the date portion is used; time-of-day is determined by [startTime]/[endTime].
+  final DateTime? scheduleDate;
+
   /// Creates a copy with the given fields replaced.
   BlockSchedule copyWith({
     String? id,
@@ -62,6 +91,7 @@ class BlockSchedule {
     TimeOfDay? startTime,
     TimeOfDay? endTime,
     bool? enabled,
+    DateTime? scheduleDate,
   }) {
     return BlockSchedule(
       id: id ?? this.id,
@@ -71,11 +101,13 @@ class BlockSchedule {
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       enabled: enabled ?? this.enabled,
+      scheduleDate: scheduleDate ?? this.scheduleDate,
     );
   }
 
   /// Creates a [BlockSchedule] from a platform channel map.
   factory BlockSchedule.fromMap(Map<String, dynamic> map) {
+    final scheduleDateMillis = map['scheduleDate'] as int?;
     return BlockSchedule(
       id: map['id'] as String,
       name: map['name'] as String,
@@ -90,6 +122,9 @@ class BlockSchedule {
         minute: map['endMinute'] as int,
       ),
       enabled: map['enabled'] as bool? ?? true,
+      scheduleDate: scheduleDateMillis != null
+          ? DateTime.fromMillisecondsSinceEpoch(scheduleDateMillis)
+          : null,
     );
   }
 
@@ -105,6 +140,8 @@ class BlockSchedule {
       'endHour': endTime.hour,
       'endMinute': endTime.minute,
       'enabled': enabled,
+      if (scheduleDate != null)
+        'scheduleDate': scheduleDate!.millisecondsSinceEpoch,
     };
   }
 
@@ -119,5 +156,10 @@ class BlockSchedule {
   int get hashCode => id.hashCode;
 
   @override
-  String toString() => 'BlockSchedule(id: $id, name: $name, enabled: $enabled)';
+  String toString() {
+    final dateStr = scheduleDate != null
+        ? ', date: ${scheduleDate!.toIso8601String()}'
+        : '';
+    return 'BlockSchedule(id: $id, name: $name, enabled: $enabled$dateStr)';
+  }
 }

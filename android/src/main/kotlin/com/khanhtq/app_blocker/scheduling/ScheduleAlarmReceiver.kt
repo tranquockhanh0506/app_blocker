@@ -15,6 +15,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             ?: return
 
         val blockingServiceManager = BlockingServiceManager(context)
+        val scheduleManager = ScheduleManager(context)
 
         val timestamp = System.currentTimeMillis()
 
@@ -40,6 +41,10 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                         "timestamp" to timestamp,
                     )
                 )
+                
+                if (scheduleManager.findSchedule(scheduleId)?.scheduleDate != null) {
+                    scheduleManager.removeSchedule(scheduleId)
+                }
             }
         }
     }
